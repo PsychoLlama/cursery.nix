@@ -2,6 +2,7 @@
 name = "dom-nix"
 version = "0.1.0"
 edition = "2024"
+authors = ["Jesse Gibson <JesseTheGibson@gmail.com>"]
 description = "WASM target for Nix with bindings for authoring interactive web apps"
 publish = false
 license = "GPL-3.0-only"

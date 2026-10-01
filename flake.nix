@@ -60,6 +60,8 @@
               pkgs.cargo-nextest
               pkgs.just
               pkgs.nixfmt
+              pkgs.nodejs
+              pkgs.pnpm
               pkgs.prettier
               pkgs.treefmt
             ];

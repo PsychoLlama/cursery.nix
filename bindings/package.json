@@ -1,0 +1,24 @@
+{
+  "name": "nix-dom",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Bindings for authoring interactive web apps with Nix",
+  "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PsychoLlama/dom.nix",
+    "directory": "bindings"
+  },
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

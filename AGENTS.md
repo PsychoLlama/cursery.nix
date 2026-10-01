@@ -16,3 +16,4 @@
 
 - Use `just check` to run all checks. Rare. Prefer targeted commands.
 - Code formats automatically. No need go manual.
+- Co-locate tests with source: `foo/bar.ts` is tested in `foo/__tests__/bar.test.ts`.
