@@ -8,14 +8,16 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/PsychoLlama/dom.nix",
-    "directory": "bindings"
+    "directory": "packages/nix-dom"
   },
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
-    "build": "cargo build --quiet --release --target wasm32-unknown-unknown && wasm-bindgen --target experimental-nodejs-module --out-dir wasm ../target/wasm32-unknown-unknown/release/dom_nix.wasm",
     "test": "vitest run",
     "typecheck": "tsc"
+  },
+  "dependencies": {
+    "nix-wasm": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
