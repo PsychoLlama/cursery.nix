@@ -38,6 +38,12 @@
       devShells = eachSystem (
         system: pkgs: {
           default = pkgs.mkShell {
+            shellHook = ''
+              # Set up git hooks.
+              git config set extensions.worktreeConfig true
+              git config set --worktree include.path "$(git rev-parse --show-toplevel)/.gitconfig"
+            '';
+
             packages = [
               (pkgs.fenix.combine [
                 pkgs.fenix.targets.wasm32-unknown-unknown.stable.rust-std
