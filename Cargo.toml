@@ -1,0 +1,7 @@
+[package]
+name = "dom-nix"
+version = "0.1.0"
+edition = "2024"
+description = "WASM target for Nix with bindings for authoring interactive web apps"
+
+[dependencies]
