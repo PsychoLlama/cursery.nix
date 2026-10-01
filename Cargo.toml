@@ -10,6 +10,15 @@ publish = false
 license = "GPL-3.0-only"
 repository = "https://github.com/PsychoLlama/dom.nix"
 
+# Distributable wasm. LTO shrinks the output and speeds up evaluation.
+# Size-oriented `opt-level`s were measured: they shave a little more off the
+# gzipped size but make evaluation 30-60% slower, a poor trade for an
+# interpreter.
+[profile.wasm]
+inherits = "release"
+lto = true
+codegen-units = 1
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_debug_implementations = "deny"
