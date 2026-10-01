@@ -39,14 +39,18 @@
         system: pkgs: {
           default = pkgs.mkShell {
             packages = [
-              (pkgs.fenix.stable.withComponents [
-                "cargo"
-                "clippy"
-                "rust-analyzer"
-                "rust-src"
-                "rustc"
-                "rustfmt"
+              (pkgs.fenix.combine [
+                pkgs.fenix.targets.wasm32-unknown-unknown.stable.rust-std
+                (pkgs.fenix.stable.withComponents [
+                  "cargo"
+                  "clippy"
+                  "rust-analyzer"
+                  "rust-src"
+                  "rustc"
+                  "rustfmt"
+                ])
               ])
+
               pkgs.nixfmt
               pkgs.prettier
               pkgs.treefmt
