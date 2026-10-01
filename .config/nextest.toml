@@ -1,0 +1,6 @@
+# No news is good news: a passing run should say nothing worth reading.
+# `fail` reports only tests that failed, both during the run and in the
+# summary. Failure output is unaffected — it stays immediate and complete.
+[profile.default]
+status-level = "fail"
+final-status-level = "fail"

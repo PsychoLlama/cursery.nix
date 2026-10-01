@@ -3,6 +3,9 @@ name = "dom-nix"
 version = "0.1.0"
 edition = "2024"
 description = "WASM target for Nix with bindings for authoring interactive web apps"
+publish = false
+license = "GPL-3.0-only"
+repository = "https://github.com/PsychoLlama/dom.nix"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -11,3 +14,35 @@ crate-type = ["cdylib", "rlib"]
 # Not published on crates.io. Default features pull in I/O (`impure`) and test
 # scaffolding, neither of which belong in a wasm build.
 snix-eval = { git = "https://git.snix.dev/snix/snix.git", rev = "ad2f9594d2266c4fbe8b4b55747f54fe73ce883b", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "deny"
+unreachable_pub = "deny"
+let_underscore_drop = "deny"
+elided_lifetimes_in_paths = "deny"
+unused_lifetimes = "deny"
+unused_qualifications = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+non_ascii_idents = "deny"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+
+# Lints from `restriction`. The group as a whole contains contradictions.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
+unused_result_ok = "deny"
+exit = "deny"
+mem_forget = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+
+# Unactionable: transitive dep trees routinely contain duplicate versions.
+multiple_crate_versions = "allow"

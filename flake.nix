@@ -51,6 +51,8 @@
                 ])
               ])
 
+              pkgs.cargo-nextest
+              pkgs.just
               pkgs.nixfmt
               pkgs.prettier
               pkgs.treefmt
