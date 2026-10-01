@@ -64,6 +64,7 @@
               pkgs.pnpm
               pkgs.prettier
               pkgs.treefmt
+              pkgs.wasm-bindgen-cli_0_2_127
             ];
           };
         }
