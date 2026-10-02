@@ -1,1 +1,3 @@
-null
+{
+  dom = import ./dom;
+}

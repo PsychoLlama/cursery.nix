@@ -28,7 +28,9 @@ describe("evaluate", () => {
 
   describe("bundled libraries", () => {
     it("resolves through the search path", () => {
-      expect(nix.evaluate("import <web>")).toBe("null");
+      expect(nix.evaluate("builtins.attrNames (import <web>)")).toBe(
+        '[ "dom" ]',
+      );
     });
 
     it("throws on unknown libraries", () => {

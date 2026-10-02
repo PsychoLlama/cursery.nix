@@ -61,7 +61,10 @@ mod tests {
 
     #[test]
     fn imports_bundled_libraries() -> Result<(), Error> {
-        assert_eq!(evaluate_strictly("import <web>")?, "null");
+        assert_eq!(
+            evaluate_strictly("builtins.attrNames (import <web>)")?,
+            r#"[ "dom" ]"#
+        );
         Ok(())
     }
 }
