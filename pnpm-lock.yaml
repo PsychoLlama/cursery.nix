@@ -6,7 +6,7 @@ settings:
 
 importers:
 
-  packages/nix-dom:
+  packages/integration-tests:
     dependencies:
       nix-wasm:
         specifier: workspace:*

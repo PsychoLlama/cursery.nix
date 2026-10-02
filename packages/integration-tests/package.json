@@ -1,17 +1,16 @@
 {
-  "name": "nix-dom",
+  "name": "integration-tests",
   "private": true,
   "version": "0.0.0",
-  "description": "Bindings for authoring interactive web apps with Nix",
+  "description": "Integration tests for the Nix evaluator and bundled libraries",
   "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/PsychoLlama/dom.nix",
-    "directory": "packages/nix-dom"
+    "directory": "packages/integration-tests"
   },
   "type": "module",
-  "exports": "./src/index.ts",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc"

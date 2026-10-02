@@ -1,4 +1,4 @@
-import * as nix from "../index.ts";
+import * as nix from "nix-wasm";
 
 describe("evaluate", () => {
   it("evaluates primitives", () => {
