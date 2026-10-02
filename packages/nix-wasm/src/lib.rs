@@ -9,6 +9,10 @@ use wasm_bindgen::prelude::*;
 
 use crate::error::Error;
 
+/// Where the bundled Nix library (`nix/`) is mounted, named after a hash of its
+/// contents. Set by `build.rs`. Only `public/` is on the search path.
+const BUNDLED_ROOT: &str = env!("BUNDLED_ROOT");
+
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
 fn start() {
@@ -27,6 +31,7 @@ fn start() {
 #[wasm_bindgen]
 pub fn evaluate(code: &str) -> Result<String, JsError> {
     let result = Evaluation::builder_pure()
+        .nix_path(Some(format!("web={BUNDLED_ROOT}/public")))
         .mode(EvalMode::Strict)
         .build()
         // Without a location, snix falls back to `current_dir()`, which is
