@@ -12,7 +12,9 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+bytes = "1.12.1"
 console_error_panic_hook = "0.1.7"
+include_dir = "0.7.4"
 # Not published on crates.io. Default features pull in I/O (`impure`) and test
 # scaffolding, neither of which belong in a wasm build.
 # Fork carrying wasm fixes (in-memory `EvalIO` imports, rooted paths).

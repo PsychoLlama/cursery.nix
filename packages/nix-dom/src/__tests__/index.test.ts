@@ -25,4 +25,18 @@ describe("evaluate", () => {
   it("throws on evaluation errors", () => {
     expect(() => nix.evaluate('throw "boom"')).toThrow(/boom/);
   });
+
+  describe("bundled libraries", () => {
+    it("resolves through the search path", () => {
+      expect(nix.evaluate("import <web>")).toBe("null");
+    });
+
+    it("throws on unknown libraries", () => {
+      expect(() => nix.evaluate("import <web/missing>")).toThrow(/missing/);
+    });
+
+    it("only resolves the `web` prefix", () => {
+      expect(() => nix.evaluate("import <public>")).toThrow(/public/);
+    });
+  });
 });

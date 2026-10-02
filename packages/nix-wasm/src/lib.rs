@@ -1,17 +1,17 @@
 //! WASM bindings for evaluating Nix.
 
 mod error;
+mod memfs;
 
 use std::path::PathBuf;
 
-use snix_eval::{EvalMode, Evaluation};
+use snix_eval::{EvalIO, EvalMode, Evaluation};
 use wasm_bindgen::prelude::*;
 
-use crate::error::Error;
-
-/// Where the bundled Nix library (`nix/`) is mounted, named after a hash of its
-/// contents. Set by `build.rs`. Only `public/` is on the search path.
-const BUNDLED_ROOT: &str = env!("BUNDLED_ROOT");
+use crate::{
+    error::Error,
+    memfs::{BUNDLED_ROOT, MemoryFilesystem},
+};
 
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
@@ -23,14 +23,23 @@ fn start() {
 
 /// Strictly evaluate a Nix expression and render the result as Nix source.
 ///
-/// Evaluation is pure: imports and impure builtins are unavailable.
+/// Evaluation is pure: impure builtins are unavailable. Bundled libraries are
+/// importable through the search path as `<web>`.
 ///
 /// # Errors
 ///
 /// Throws if the expression fails to parse or evaluate.
 #[wasm_bindgen]
 pub fn evaluate(code: &str) -> Result<String, JsError> {
+    Ok(evaluate_strictly(code)?)
+}
+
+fn evaluate_strictly(code: &str) -> Result<String, Error> {
+    let filesystem: Box<dyn EvalIO> = Box::new(MemoryFilesystem::with_bundled_library());
     let result = Evaluation::builder_pure()
+        .io_handle(filesystem)
+        .enable_import()
+        // Only `public/` is exposed, keeping internal modules out of `<web/...>`.
         .nix_path(Some(format!("web={BUNDLED_ROOT}/public")))
         .mode(EvalMode::Strict)
         .build()
@@ -39,9 +48,20 @@ pub fn evaluate(code: &str) -> Result<String, JsError> {
         .evaluate(code, Some(PathBuf::from("/tmp")));
 
     if let Some(error) = result.errors.into_iter().next() {
-        return Err(Error::Eval(error).into());
+        return Err(Error::Eval(error));
     }
 
     let value = result.value.ok_or(Error::NoValue)?;
     Ok(value.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn imports_bundled_libraries() -> Result<(), Error> {
+        assert_eq!(evaluate_strictly("import <web>")?, "null");
+        Ok(())
+    }
 }
