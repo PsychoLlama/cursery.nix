@@ -7,4 +7,13 @@ pub(crate) enum Error {
 
     #[error("Evaluation produced no value")]
     NoValue,
+
+    #[error("Invalid file path {0:?}: must be relative to the chunk root")]
+    InvalidPath(String),
+
+    #[error("Invalid files: expected a map of paths to strings")]
+    InvalidFiles,
+
+    #[error("Not loaded: {0:?}")]
+    NotLoaded(String),
 }

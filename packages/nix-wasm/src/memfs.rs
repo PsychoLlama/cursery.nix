@@ -1,11 +1,13 @@
 //! An in-memory filesystem backing `import` and `<...>` lookups.
 //!
-//! Files are grouped into chunks, each mounted at `/<hash>`. Directories are
-//! implied by the files beneath them.
+//! Files are grouped into chunks, each mounted at `/<hash>` where the hash
+//! covers its paths and contents. Directories are implied by the files beneath
+//! them.
 
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
+    hash::{DefaultHasher, Hash, Hasher},
     io::{self, Cursor, Read},
     path::{Component, Path, PathBuf},
     rc::Rc,
@@ -14,14 +16,10 @@ use std::{
 use include_dir::{Dir, DirEntry, include_dir};
 use snix_eval::{EvalIO, FileType};
 
-/// A hash of the bundled Nix library (`nix/`), which is mounted at
-/// `/<hash>`. Set by `build.rs`.
-pub(crate) const BUNDLED_HASH: &str = env!("BUNDLED_HASH");
-
-/// The bundled Nix library, mounted at `/<BUNDLED_HASH>`.
+/// The bundled Nix library.
 ///
-/// On stable Rust, `include_dir!` can't track newly added files. Adding one
-/// still changes `BUNDLED_HASH`, which forces a recompile.
+/// On stable Rust, `include_dir!` can't track newly added files. `build.rs`
+/// forces a recompile instead.
 static BUNDLED_LIBRARY: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/nix");
 
 /// File contents, keyed by path relative to the chunk root.
@@ -31,23 +29,25 @@ pub(crate) type Files = BTreeMap<PathBuf, Rc<[u8]>>;
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MemoryFilesystem {
     /// Keyed by hash, e.g. `3f9a0c1e2b7d4a65`.
-    chunks: BTreeMap<OsString, Rc<Files>>,
+    chunks: BTreeMap<String, Rc<Files>>,
 }
 
 impl MemoryFilesystem {
-    /// A filesystem containing only the bundled Nix library.
-    pub(crate) fn with_bundled_library() -> Self {
-        let mut files = Files::new();
-        collect_bundled_files(&BUNDLED_LIBRARY, &mut files);
+    /// Mounts `files` at `/<hash>` and returns the hash. Identical files
+    /// always land at the same hash.
+    pub(crate) fn mount(&mut self, files: Files) -> String {
+        // Not stable across Rust releases, but it only has to be consistent
+        // within a single instance.
+        let mut hasher = DefaultHasher::new();
+        files.hash(&mut hasher);
+        let hash = format!("{:016x}", hasher.finish());
 
-        let mut filesystem = Self::default();
-        filesystem.mount(BUNDLED_HASH.into(), files);
-        filesystem
+        self.chunks.insert(hash.clone(), Rc::new(files));
+        hash
     }
 
-    /// Mounts `files` at `/<hash>`, replacing any chunk already there.
-    pub(crate) fn mount(&mut self, hash: OsString, files: Files) {
-        self.chunks.insert(hash, Rc::new(files));
+    pub(crate) fn unmount(&mut self, hash: &str) {
+        self.chunks.remove(hash);
     }
 
     /// Splits `/<hash>/rest` into the chunk and `rest`.
@@ -59,7 +59,7 @@ impl MemoryFilesystem {
             return None;
         };
 
-        let files = self.chunks.get(hash)?;
+        let files = self.chunks.get(hash.to_str()?)?;
         Some((files, components.as_path()))
     }
 
@@ -75,6 +75,13 @@ impl MemoryFilesystem {
                 .any(|file| file != relative && file.starts_with(relative))
         })
     }
+}
+
+/// The bundled Nix library (`nix/`), ready to mount.
+pub(crate) fn bundled_library() -> Files {
+    let mut files = Files::new();
+    collect_bundled_files(&BUNDLED_LIBRARY, &mut files);
+    files
 }
 
 /// Flattens a bundled directory into `files`. Entry paths are relative to
