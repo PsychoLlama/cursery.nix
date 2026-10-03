@@ -3,15 +3,22 @@
 mod error;
 mod memfs;
 
-use std::path::PathBuf;
+use std::{cell::RefCell, path::PathBuf};
 
 use snix_eval::{EvalIO, EvalMode, Evaluation};
 use wasm_bindgen::prelude::*;
 
 use crate::{
     error::Error,
-    memfs::{BUNDLED_ROOT, MemoryFilesystem},
+    memfs::{BUNDLED_HASH, MemoryFilesystem},
 };
+
+thread_local! {
+    /// Files available to `import`, kept across evaluations. wasm is
+    /// single-threaded, so this is effectively a global.
+    static FILESYSTEM: RefCell<MemoryFilesystem> =
+        RefCell::new(MemoryFilesystem::with_bundled_library());
+}
 
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
@@ -35,12 +42,14 @@ pub fn evaluate(code: &str) -> Result<String, JsError> {
 }
 
 fn evaluate_strictly(code: &str) -> Result<String, Error> {
-    let filesystem: Box<dyn EvalIO> = Box::new(MemoryFilesystem::with_bundled_library());
+    // A snapshot: changes to the filesystem don't affect evaluations in
+    // progress.
+    let filesystem: Box<dyn EvalIO> = Box::new(FILESYSTEM.with_borrow(Clone::clone));
     let result = Evaluation::builder_pure()
         .io_handle(filesystem)
         .enable_import()
         // Only `public/` is exposed, keeping internal modules out of `<web/...>`.
-        .nix_path(Some(format!("web={BUNDLED_ROOT}/public")))
+        .nix_path(Some(format!("web=/{BUNDLED_HASH}/public")))
         .mode(EvalMode::Strict)
         .build()
         // Without a location, snix falls back to `current_dir()`, which is

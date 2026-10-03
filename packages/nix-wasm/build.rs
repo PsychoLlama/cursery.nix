@@ -1,9 +1,9 @@
 //! Derives where the bundled Nix library (`nix/`) is mounted.
 //!
-//! Sets the `BUNDLED_ROOT` env var for the crate: a path named after a hash of
-//! the library's contents. It changes whenever the library does, so it can't
-//! be usefully hardcoded. Consumers go through the search path (`<web/...>`)
-//! instead.
+//! Sets the `BUNDLED_HASH` env var for the crate: a hash of the library's
+//! contents, which names its mount point. It changes whenever the library
+//! does, so it can't be usefully hardcoded. Consumers go through the search
+//! path (`<web/...>`) instead.
 
 use std::{
     env, fs,
@@ -29,7 +29,7 @@ fn main() -> io::Result<()> {
         fs::read(path)?.hash(&mut hasher);
     }
 
-    println!("cargo::rustc-env=BUNDLED_ROOT=/{:016x}", hasher.finish());
+    println!("cargo::rustc-env=BUNDLED_HASH={:016x}", hasher.finish());
     Ok(())
 }
 
