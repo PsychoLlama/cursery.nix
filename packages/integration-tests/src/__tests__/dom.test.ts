@@ -1,15 +1,11 @@
 import * as nix from "nix-wasm";
 
-/** Evaluates `code` with the DOM builders in scope and returns it as JSON. */
+/** Evaluates `code` with the DOM builders in scope. */
 function render(code: string): unknown {
-  // The root keeps its functor, which `toJSON` can't serialize.
-  const source = nix.evaluate(
-    `builtins.toJSON (builtins.removeAttrs (let inherit (import <web/dom>) element html; in ${code}) [ "__functor" ])`,
+  // The root keeps its functor, which can't be converted to JS yet.
+  return nix.evaluate(
+    `builtins.removeAttrs (let inherit (import <web/dom>) element html; in ${code}) [ "__functor" ]`,
   );
-
-  // `evaluate` renders the JSON as a Nix string literal, whose escapes match
-  // JSON's for everything these tests produce.
-  return JSON.parse(JSON.parse(source) as string);
 }
 
 describe("dom", () => {

@@ -4,6 +4,7 @@ mod error;
 mod memfs;
 mod store;
 mod store_path;
+mod to_js;
 
 use std::{
     path::{Component, Path, PathBuf},
@@ -11,10 +12,10 @@ use std::{
 };
 
 use js_sys::{Array, Object};
-use snix_eval::{EvalIO, EvalMode, Evaluation};
+use snix_eval::{EvalIO, EvalMode, Evaluation, Value};
 use wasm_bindgen::prelude::*;
 
-use crate::{error::Error, memfs::Files};
+use crate::{error::Error, memfs::Files, to_js::to_js};
 
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
@@ -59,7 +60,8 @@ pub fn unload(path: &str) -> Result<(), JsError> {
     Ok(store::unload(Path::new(path))?)
 }
 
-/// Strictly evaluate a Nix expression and render the result as Nix source.
+/// Strictly evaluate a Nix expression and convert the result to JS. Attrsets
+/// become objects with a null prototype.
 ///
 /// Evaluation is pure: impure builtins are unavailable. Loaded files are
 /// importable by path, and bundled libraries through the search path as
@@ -67,10 +69,11 @@ pub fn unload(path: &str) -> Result<(), JsError> {
 ///
 /// # Errors
 ///
-/// Throws if the expression fails to parse or evaluate.
-#[wasm_bindgen]
-pub fn evaluate(code: &str) -> Result<String, JsError> {
-    Ok(evaluate_strictly(code)?)
+/// Throws if the expression fails to parse or evaluate, or the result
+/// contains something JS can't represent (functions, integers beyond 2^53).
+#[wasm_bindgen(unchecked_return_type = "unknown")]
+pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
+    Ok(to_js(&evaluate_strictly(code)?)?)
 }
 
 fn read_files(files: &NixFiles) -> Result<Files, Error> {
@@ -108,7 +111,7 @@ fn normalize_path(path: &str) -> Result<PathBuf, Error> {
     Ok(normalized)
 }
 
-fn evaluate_strictly(code: &str) -> Result<String, Error> {
+fn evaluate_strictly(code: &str) -> Result<Value, Error> {
     // A snapshot: changes to the store don't affect evaluations in progress.
     let (filesystem, bundled_path) = store::snapshot();
     let filesystem: Box<dyn EvalIO> = Box::new(filesystem);
@@ -130,8 +133,7 @@ fn evaluate_strictly(code: &str) -> Result<String, Error> {
         return Err(Error::Eval(error));
     }
 
-    let value = result.value.ok_or(Error::NoValue)?;
-    Ok(value.to_string())
+    result.value.ok_or(Error::NoValue)
 }
 
 #[cfg(test)]
@@ -141,7 +143,7 @@ mod tests {
     #[test]
     fn imports_bundled_libraries() -> Result<(), Error> {
         assert_eq!(
-            evaluate_strictly("builtins.attrNames (import <web>)")?,
+            evaluate_strictly("builtins.attrNames (import <web>)")?.to_string(),
             r#"[ "dom" ]"#
         );
         Ok(())

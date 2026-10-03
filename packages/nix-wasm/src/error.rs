@@ -18,4 +18,16 @@ pub(crate) enum Error {
 
     #[error("Not loaded: {0:?}")]
     NotLoaded(PathBuf),
+
+    #[error("Cannot convert a {0} to JS")]
+    Unconvertible(&'static str),
+
+    #[error("Cannot convert {0} to JS: integers beyond 2^53 lose precision")]
+    UnsafeInteger(i64),
+
+    #[error("Cannot convert to JS: invalid UTF-8")]
+    InvalidUtf8,
+
+    #[error("{0}")]
+    Js(String),
 }

@@ -4,7 +4,7 @@ describe("store", () => {
   it("imports loaded files", () => {
     const app = nix.load({ "main.nix": "1 + 1" });
 
-    expect(nix.evaluate(`import ${app}/main.nix`)).toBe("2");
+    expect(nix.evaluate(`import ${app}/main.nix`)).toBe(2);
     nix.unload(app);
   });
 
@@ -15,14 +15,14 @@ describe("store", () => {
       "./views/home.nix": "42",
     });
 
-    expect(nix.evaluate(`import ${app}/main.nix`)).toBe("42");
+    expect(nix.evaluate(`import ${app}/main.nix`)).toBe(42);
     nix.unload(app);
   });
 
   it("lets loaded files use bundled libraries", () => {
     const app = nix.load({ "main.nix": "builtins.attrNames (import <web>)" });
 
-    expect(nix.evaluate(`import ${app}/main.nix`)).toBe('[ "dom" ]');
+    expect(nix.evaluate(`import ${app}/main.nix`)).toEqual(["dom"]);
     nix.unload(app);
   });
 
@@ -58,7 +58,7 @@ describe("store", () => {
     nix.unload(a);
 
     expect(() => nix.evaluate(`import ${a}/main.nix`)).toThrow();
-    expect(nix.evaluate(`import ${b}/main.nix`)).toBe('"b"');
+    expect(nix.evaluate(`import ${b}/main.nix`)).toBe("b");
     nix.unload(b);
   });
 
@@ -67,7 +67,7 @@ describe("store", () => {
     const second = nix.load({ "main.nix": "1" });
 
     nix.unload(first);
-    expect(nix.evaluate(`import ${second}/main.nix`)).toBe("1");
+    expect(nix.evaluate(`import ${second}/main.nix`)).toBe(1);
 
     nix.unload(second);
     expect(() => nix.evaluate(`import ${second}/main.nix`)).toThrow();
