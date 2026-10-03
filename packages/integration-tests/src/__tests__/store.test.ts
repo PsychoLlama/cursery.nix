@@ -4,7 +4,6 @@ describe("store", () => {
   it("imports loaded files", () => {
     const app = nix.load({ "main.nix": "1 + 1" });
 
-    expect(app).toMatch(/^\/[0-9a-f]{16}$/);
     expect(nix.evaluate(`import ${app}/main.nix`)).toBe("2");
     nix.unload(app);
   });
@@ -24,6 +23,20 @@ describe("store", () => {
     const app = nix.load({ "main.nix": "builtins.attrNames (import <web>)" });
 
     expect(nix.evaluate(`import ${app}/main.nix`)).toBe('[ "dom" ]');
+    nix.unload(app);
+  });
+
+  it("matches the store paths Nix computes", () => {
+    // From `builtins.path { path = ...; name = "source"; }` over the same files.
+    const app = nix.load({
+      "main.nix": "1",
+      "a.nix": "x",
+      "a/b.nix": "nested",
+      "views/default.nix": "12345678",
+      "views/deep/empty.nix": "",
+    });
+
+    expect(app).toBe("/nix/store/sf59v5wn0wryk29kvx93y9vp2s45z0kh-source");
     nix.unload(app);
   });
 

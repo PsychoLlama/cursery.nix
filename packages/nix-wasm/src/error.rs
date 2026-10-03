@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 /// Errors surfaced to JS. Converted to a JS `Error` by `wasm-bindgen` at the
 /// export boundary.
 #[derive(Debug, thiserror::Error)]
@@ -15,5 +17,5 @@ pub(crate) enum Error {
     InvalidFiles,
 
     #[error("Not loaded: {0:?}")]
-    NotLoaded(String),
+    NotLoaded(PathBuf),
 }

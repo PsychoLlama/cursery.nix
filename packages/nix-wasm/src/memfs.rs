@@ -1,20 +1,21 @@
 //! An in-memory filesystem backing `import` and `<...>` lookups.
 //!
-//! Files are grouped into chunks, each mounted at `/<hash>` where the hash
-//! covers its paths and contents. Directories are implied by the files beneath
-//! them.
+//! Files are grouped into chunks, each mounted at the store path Nix would give
+//! the same files, e.g. `/nix/store/<hash>-source`. Directories are implied by
+//! the files beneath them.
 
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    hash::{DefaultHasher, Hash, Hasher},
     io::{self, Cursor, Read},
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
 use include_dir::{Dir, DirEntry, include_dir};
 use snix_eval::{EvalIO, FileType};
+
+use crate::store_path::{store_dir, store_path};
 
 /// The bundled Nix library.
 ///
@@ -28,39 +29,32 @@ pub(crate) type Files = BTreeMap<PathBuf, Rc<[u8]>>;
 /// Cheap to clone: chunks are shared, so a clone serves as a snapshot.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MemoryFilesystem {
-    /// Keyed by hash, e.g. `3f9a0c1e2b7d4a65`.
-    chunks: BTreeMap<String, Rc<Files>>,
+    /// Keyed by store path, e.g.
+    /// `/nix/store/sf59v5wn0wryk29kvx93y9vp2s45z0kh-source`.
+    chunks: BTreeMap<PathBuf, Rc<Files>>,
 }
 
 impl MemoryFilesystem {
-    /// Mounts `files` at `/<hash>` and returns the hash. Identical files
-    /// always land at the same hash.
-    pub(crate) fn mount(&mut self, files: Files) -> String {
-        // Not stable across Rust releases, but it only has to be consistent
-        // within a single instance.
-        let mut hasher = DefaultHasher::new();
-        files.hash(&mut hasher);
-        let hash = format!("{:016x}", hasher.finish());
-
-        self.chunks.insert(hash.clone(), Rc::new(files));
-        hash
+    /// Mounts `files` at their store path and returns it. Identical files
+    /// always land at the same path.
+    pub(crate) fn mount(&mut self, files: Files) -> PathBuf {
+        let store_path = store_path(&files);
+        self.chunks.insert(store_path.clone(), Rc::new(files));
+        store_path
     }
 
-    pub(crate) fn unmount(&mut self, hash: &str) {
-        self.chunks.remove(hash);
+    pub(crate) fn unmount(&mut self, store_path: &Path) {
+        self.chunks.remove(store_path);
     }
 
-    /// Splits `/<hash>/rest` into the chunk and `rest`.
+    /// Splits `/nix/store/<hash>-<name>/rest` into the chunk and `rest`.
     fn locate<'a, 'b>(&'a self, path: &'b Path) -> Option<(&'a Files, &'b Path)> {
-        let mut components = path.components();
-        let (Some(Component::RootDir), Some(Component::Normal(hash))) =
-            (components.next(), components.next())
-        else {
-            return None;
-        };
+        let store_path = path
+            .ancestors()
+            .find(|ancestor| ancestor.parent() == Some(store_dir()))?;
 
-        let files = self.chunks.get(hash.to_str()?)?;
-        Some((files, components.as_path()))
+        let files = self.chunks.get(store_path)?;
+        Some((files, path.strip_prefix(store_path).ok()?))
     }
 
     fn file(&self, path: &Path) -> Option<&Rc<[u8]>> {

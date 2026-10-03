@@ -3,6 +3,7 @@
 mod error;
 mod memfs;
 mod store;
+mod store_path;
 
 use std::{
     path::{Component, Path, PathBuf},
@@ -30,8 +31,9 @@ extern "C" {
     pub type NixFiles;
 }
 
-/// Load Nix files into the store and return their path, e.g.
-/// `/3f9a0c1e2b7d4a65`. Import from it during evaluation:
+/// Load Nix files into the store and return their store path, e.g.
+/// `/nix/store/sf59v5wn0wryk29kvx93y9vp2s45z0kh-source`, matching the path
+/// Nix gives the same files. Import from it during evaluation:
 /// `import ${path}/main.nix`.
 ///
 /// Paths are relative to the returned path (`main.nix` or `./main.nix`).
@@ -42,7 +44,8 @@ extern "C" {
 /// Throws if a path escapes the root or a value isn't a string.
 #[wasm_bindgen]
 pub fn load(files: &NixFiles) -> Result<String, JsError> {
-    Ok(store::load(read_files(files)?))
+    // Store paths are always ASCII.
+    Ok(store::load(read_files(files)?).display().to_string())
 }
 
 /// Release a path returned by `load`. Its files stay available until every
@@ -53,7 +56,7 @@ pub fn load(files: &NixFiles) -> Result<String, JsError> {
 /// Throws if the path isn't loaded.
 #[wasm_bindgen]
 pub fn unload(path: &str) -> Result<(), JsError> {
-    Ok(store::unload(path)?)
+    Ok(store::unload(Path::new(path))?)
 }
 
 /// Strictly evaluate a Nix expression and render the result as Nix source.
@@ -113,7 +116,10 @@ fn evaluate_strictly(code: &str) -> Result<String, Error> {
         .io_handle(filesystem)
         .enable_import()
         // Only `public/` is exposed, keeping internal modules out of `<web/...>`.
-        .nix_path(Some(format!("web={bundled_path}/public")))
+        .nix_path(Some(format!(
+            "web={}",
+            bundled_path.join("public").display()
+        )))
         .mode(EvalMode::Strict)
         .build()
         // Without a location, snix falls back to `current_dir()`, which is
