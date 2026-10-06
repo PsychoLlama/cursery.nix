@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 
+use js_sys::Object;
+use wasm_bindgen::{JsCast, JsValue};
+
 /// Errors surfaced to JS. Converted to a JS `Error` by `wasm-bindgen` at the
 /// export boundary.
 #[derive(Debug, thiserror::Error)]
@@ -28,6 +31,23 @@ pub(crate) enum Error {
     #[error("Cannot convert to JS: invalid UTF-8")]
     InvalidUtf8,
 
+    #[error("Invalid node: {0}")]
+    InvalidNode(String),
+
+    #[error("Invalid node: {0}")]
+    InvalidNodeType(#[from] snix_eval::ErrorKind),
+
     #[error("{0}")]
     Js(String),
+}
+
+impl From<JsValue> for Error {
+    /// Keeps the message of thrown errors (e.g. `InvalidCharacterError: ...`).
+    fn from(error: JsValue) -> Self {
+        let message = error
+            .as_string()
+            .unwrap_or_else(|| String::from(error.unchecked_ref::<Object>().to_string()));
+
+        Self::Js(message)
+    }
 }

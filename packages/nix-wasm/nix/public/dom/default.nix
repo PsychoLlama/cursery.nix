@@ -10,52 +10,30 @@
 # Elements are functors: applying one to attrs merges them in, and applying it
 # to children appends them. Both are optional and can repeat.
 #
-# Builders normalize as they go, so every node is one of two shapes:
-#
-#   { _type = "element"; tag; key; attrs; children; }
-#   { _type = "text"; text; }
-#
-# Those shapes are the contract with the renderer. The root element also
-# carries `__functor`, which renderers should ignore.
+# Builders normalize children as they go (see `internal/children.nix`).
 
 let
-  # Wraps a string in a text node.
-  text = value: {
-    _type = "text";
-    text = value;
-  };
-
-  isNode =
-    value:
-    builtins.isAttrs value
-    && builtins.elem (value._type or null) [
-      "element"
-      "text"
-    ];
-
-  # Flattens children (like React's `ReactNode`) into a list of nodes:
-  # - Lists are flattened, however deeply nested.
-  # - `null` and booleans render nothing, for conditional rendering.
-  # - Strings and numbers become text nodes.
-  normalizeChildren =
-    children:
-    if builtins.isList children then
-      builtins.concatMap normalizeChildren children
-    else if children == null || builtins.isBool children then
-      [ ]
-    else if builtins.isString children then
-      [ (text children) ]
-    else if builtins.isInt children || builtins.isFloat children then
-      [ (text (builtins.toJSON children)) ]
-    else if isNode children then
-      # TODO: Stop stripping the functor. It only exists so tests can use
-      # `builtins.toJSON`; future tests will exercise rendered behavior.
-      [ (builtins.removeAttrs children [ "__functor" ]) ]
-    else
-      throw "Invalid child of type ${builtins.typeOf children}: expected an element, string, number, null, boolean, or a list of those";
+  inherit (import ../../internal/children.nix) text normalize;
 
   # Attrsets that aren't nodes are attrs. Nodes are children.
   isAttrs = value: builtins.isAttrs value && !(value ? _type);
+
+  # Converts an attribute value to the string the renderer sets, the way HTML
+  # does. `true` sets an empty attribute (`disabled`), and `false` or `null`
+  # become `null`, which the renderer omits. They stay in attrs so they can
+  # override an earlier value.
+  attribute =
+    name: value:
+    if value == null || value == false then
+      null
+    else if value == true then
+      ""
+    else if builtins.isString value then
+      value
+    else if builtins.isInt value || builtins.isFloat value then
+      builtins.toJSON value
+    else
+      throw "Invalid attribute \"${name}\" of type ${builtins.typeOf value}: expected a string, number, boolean, or null";
 
   # Applies attrs or children to an element, returning a new element. `key` is
   # lifted out of attrs to identify the node among its siblings when diffing.
@@ -65,10 +43,10 @@ let
       self
       // {
         key = arg.key or self.key;
-        attrs = self.attrs // builtins.removeAttrs arg [ "key" ];
+        attrs = self.attrs // builtins.mapAttrs attribute (builtins.removeAttrs arg [ "key" ]);
       }
     else
-      self // { children = self.children ++ normalizeChildren arg; };
+      self // { children = self.children ++ normalize arg; };
 
   # Creates an element with no attrs or children.
   element = tag: {

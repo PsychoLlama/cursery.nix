@@ -83,6 +83,11 @@ pub(crate) fn unload(store_path: &Path) -> Result<(), Error> {
     })
 }
 
+/// Store path of the bundled library.
+pub(crate) fn bundled_path() -> PathBuf {
+    STORE.with_borrow(|store| store.bundled_path.clone())
+}
+
 /// The current filesystem, unaffected by later loads and unloads, along with
 /// the path of the bundled library.
 pub(crate) fn snapshot() -> (MemoryFilesystem, PathBuf) {

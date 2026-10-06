@@ -5,6 +5,7 @@ mod memfs;
 mod store;
 mod store_path;
 mod to_js;
+mod virtual_dom;
 
 use std::{
     path::{Component, Path, PathBuf},
@@ -12,8 +13,11 @@ use std::{
 };
 
 use js_sys::{Array, Object};
+use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
 use snix_eval::{EvalIO, EvalMode, Evaluation, Value};
 use wasm_bindgen::prelude::*;
+use web_sys::Element;
 
 use crate::{error::Error, memfs::Files, to_js::to_js};
 
@@ -73,7 +77,49 @@ pub fn unload(path: &str) -> Result<(), JsError> {
 /// contains something JS can't represent (functions, integers beyond 2^53).
 #[wasm_bindgen(unchecked_return_type = "unknown")]
 pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
-    Ok(to_js(&evaluate_strictly(code)?)?)
+    Ok(to_js(&evaluate_strictly(code, None)?)?)
+}
+
+/// Render an app into `container`, replacing its contents. `path` is its
+/// `default.nix`, or a directory containing one, e.g. `${path}/app` for a
+/// path returned by `load`.
+///
+/// Apps are attrsets of optional hooks. `render` takes the state (for now,
+/// always `{ }`) and returns children, like any element accepts:
+///
+/// ```nix
+/// let inherit (import <web/dom>) html; in
+/// {
+///   render = state: html.h1 "Hello";
+/// }
+/// ```
+///
+/// # Errors
+///
+/// Throws if the app fails to evaluate or renders an invalid tree. The
+/// container is left untouched.
+#[wasm_bindgen]
+pub fn mount(container: &Element, path: &str) -> Result<(), JsError> {
+    let variables = FxHashMap::from_iter([
+        (
+            SmolStr::new_static("renderer"),
+            nix_path(store::bundled_path().join("internal/render.nix")),
+        ),
+        (SmolStr::new_static("app"), nix_path(PathBuf::from(path))),
+    ]);
+
+    let children = evaluate_strictly("import renderer (import app)", Some(&variables))?;
+    let document = container
+        .owner_document()
+        .ok_or_else(|| Error::Js("Container has no document".to_owned()))?;
+
+    let nodes = virtual_dom::create_children(&children, &document)?;
+    container.replace_children_with_node(&nodes);
+    Ok(())
+}
+
+fn nix_path(path: PathBuf) -> Value {
+    Value::Path(Box::new(path))
 }
 
 fn read_files(files: &NixFiles) -> Result<Files, Error> {
@@ -111,7 +157,11 @@ fn normalize_path(path: &str) -> Result<PathBuf, Error> {
     Ok(normalized)
 }
 
-fn evaluate_strictly(code: &str) -> Result<Value, Error> {
+/// Strictly evaluate `code`, with `variables` in scope.
+fn evaluate_strictly(
+    code: &str,
+    variables: Option<&FxHashMap<SmolStr, Value>>,
+) -> Result<Value, Error> {
     // A snapshot: changes to the store don't affect evaluations in progress.
     let (filesystem, bundled_path) = store::snapshot();
     let filesystem: Box<dyn EvalIO> = Box::new(filesystem);
@@ -123,6 +173,7 @@ fn evaluate_strictly(code: &str) -> Result<Value, Error> {
             "web={}",
             bundled_path.join("public").display()
         )))
+        .env(variables)
         .mode(EvalMode::Strict)
         .build()
         // Without a location, snix falls back to `current_dir()`, which is
@@ -143,7 +194,7 @@ mod tests {
     #[test]
     fn imports_bundled_libraries() -> Result<(), Error> {
         assert_eq!(
-            evaluate_strictly("builtins.attrNames (import <web>)")?.to_string(),
+            evaluate_strictly("builtins.attrNames (import <web>)", None)?.to_string(),
             r#"[ "dom" ]"#
         );
         Ok(())
