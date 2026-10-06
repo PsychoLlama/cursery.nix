@@ -1,4 +1,4 @@
-import * as nix from "nix-wasm";
+import * as nix from "cursery";
 
 /** Renders `code` with the DOM builders in scope, returning its HTML. */
 function render(code: string): string {

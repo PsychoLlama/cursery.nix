@@ -7,7 +7,7 @@
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PsychoLlama/dom.nix",
+    "url": "https://github.com/PsychoLlama/cursery.nix",
     "directory": "packages/integration-tests"
   },
   "type": "module",
@@ -16,7 +16,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "nix-wasm": "workspace:*"
+    "cursery": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

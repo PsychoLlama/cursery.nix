@@ -1,5 +1,5 @@
 [package]
-name = "nix-wasm"
+name = "cursery"
 description = "Nix evaluator compiled to WASM"
 version.workspace = true
 edition.workspace = true

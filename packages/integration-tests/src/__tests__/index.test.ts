@@ -1,4 +1,4 @@
-import * as nix from "nix-wasm";
+import * as nix from "cursery";
 
 describe("evaluate", () => {
   it("strictly evaluates nested values", () => {

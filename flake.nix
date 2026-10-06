@@ -1,5 +1,5 @@
 {
-  description = "dom.nix: web apps authored with Nix";
+  description = "cursery.nix: web apps authored with Nix";
 
   inputs = {
     systems.url = "github:nix-systems/default";
