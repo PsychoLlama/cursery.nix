@@ -1,49 +1,107 @@
 let
-  inherit (import <web/dom>) html;
+  inherit (import <web/dom>) html svg;
   inherit (import <web/io>) dispatch runCommand;
-  inherit (import <web/style>) css;
+  inherit (import <web/style>) css image;
 
   # Shown while hovering its item.
   destroy = css {
-    margin-left = "auto";
-    padding = "0 0.5rem";
-    border = "none";
-    background = "none";
-    font = "inherit";
+    position = "absolute";
+    top = 0;
+    right = "10px";
+    bottom = 0;
+    display = "none";
+    width = "40px";
+    height = "40px";
+    margin = "auto 0";
+    font-size = "30px";
+    line-height = 1.1;
     color = "#949494";
     cursor = "pointer";
-    opacity = 0;
-    "&:hover".color = "#c18585";
-  };
-
-  item = css {
-    display = "flex";
-    align-items = "center";
-    gap = "1rem";
-    padding = "0.75rem 0.5rem 0.75rem 1rem";
-    border-top = "1px solid #ededed";
-    font-size = "1.5rem";
-    "&:hover .${destroy.name}".opacity = 1;
-  };
-
-  toggle = css {
-    width = "1.5rem";
-    height = "1.5rem";
-    margin = 0;
-    accent-color = "#5dc2af";
+    transition = "color 0.2s ease-out";
+    "&:hover, &:focus".color = "#c18585";
   };
 
   # Replaces the item while editing, its text lined up with the label's.
   edit = css {
+    display = "block";
     box-sizing = "border-box";
-    width = "100%";
-    padding = "0.75rem 1rem 0.75rem 3.5rem";
-    border = "none";
-    border-top = "1px solid #ededed";
-    font = "inherit";
-    font-size = "1.5rem";
+    width = "calc(100% - 43px)";
+    margin = "0 0 0 43px";
+    padding = "12px 16px";
+    border = "1px solid #999";
     box-shadow = "inset 0 -1px 5px rgb(0 0 0 / 0.2)";
-    outline = "1px solid #999";
+    font = "inherit";
+    font-size = "24px";
+    line-height = "1.4em";
+    color = "inherit";
+    "&:focus".box-shadow = "0 0 2px 2px #cf7d7d";
+  };
+
+  item = css {
+    position = "relative";
+    font-size = "24px";
+    border-bottom = "1px solid #ededed";
+    "&:last-child".border-bottom = "none";
+    "&:hover .${destroy.name}".display = "block";
+    "&:has(.${edit.name})".border-bottom = "none";
+  };
+
+  # A circle, green and ticked while checked.
+  circle =
+    { checked }:
+    svg.svg
+      {
+        width = 40;
+        height = 40;
+        viewBox = "-10 -18 100 135";
+      }
+      [
+        (svg.circle {
+          cx = 50;
+          cy = 50;
+          r = 50;
+          fill = "none";
+          stroke = if checked then "#59a193" else "#949494";
+          stroke-width = 3;
+        })
+        (
+          if checked then
+            svg.path {
+              fill = "#3ea390";
+              d = "M72 25L42 71 27 56l-4 4 20 20 34-52z";
+            }
+          else
+            null
+        )
+      ];
+
+  toggle = css {
+    position = "absolute";
+    top = 0;
+    bottom = 0;
+    width = "40px";
+    height = "40px";
+    margin = "auto 0";
+    appearance = "none";
+    background = "${
+      image (circle {
+        checked = false;
+      })
+    } no-repeat center";
+    cursor = "pointer";
+    "&:checked".background-image = image (circle {
+      checked = true;
+    });
+  };
+
+  label = css {
+    display = "block";
+    padding = "15px 15px 15px 60px";
+    overflow-wrap = "break-word";
+    font-weight = 400;
+    line-height = 1.2;
+    color = "#484848";
+    transition = "color 0.4s";
   };
 
   completed = css {
@@ -67,7 +125,7 @@ in
 
 { todo, editing }:
 if editing then
-  html.li [
+  html.li { class = item; } [
     (html.input {
       id = editId todo;
       class = edit;
@@ -93,7 +151,10 @@ else
     })
 
     (html.label {
-      class = if todo.completed then completed else null;
+      class = [
+        label
+        (if todo.completed then completed else null)
+      ];
 
       # Renders the field, then focuses it.
       on.dblclick = event: [

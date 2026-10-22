@@ -7,12 +7,18 @@ let
   todoList = import ./components/todo-list.nix;
   toggleAll = import ./components/toggle-all.nix;
   footer = import ./components/footer.nix;
+  info = import ./components/info.nix;
 
   app = css {
     position = "relative";
-    margin-top = "8rem";
+    margin = "130px 0 40px";
     background = "#fff";
     box-shadow = "0 2px 4px rgb(0 0 0 / 0.2), 0 25px 50px rgb(0 0 0 / 0.1)";
+  };
+
+  main = css {
+    position = "relative";
+    border-top = "1px solid #e6e6e6";
   };
 in
 
@@ -21,12 +27,26 @@ in
 
   styles = {
     body = {
+      min-width = "230px";
       max-width = "550px";
       margin = "0 auto";
-      padding = "2rem 1rem";
-      font = "14px/1.4 system-ui, sans-serif";
+      font = "300 14px/1.4em 'Helvetica Neue', Helvetica, Arial, sans-serif";
       color = "#111";
       background = "#f5f5f5";
+    };
+
+    button = {
+      appearance = "none";
+      padding = 0;
+      border = 0;
+      background = "none";
+      font = "inherit";
+      color = "inherit";
+    };
+
+    ":focus" = {
+      outline = 0;
+      box-shadow = "0 0 2px 2px #cf7d7d";
     };
   };
 
@@ -39,14 +59,17 @@ in
           null
         else
           [
-            (toggleAll { inherit (state) todos; })
-            (todoList {
-              inherit (state) editing;
-              todos = visible state;
-            })
+            (html.main { class = main; } [
+              (toggleAll { inherit (state) todos; })
+              (todoList {
+                inherit (state) editing;
+                todos = visible state;
+              })
+            ])
             (footer { inherit (state) todos filter; })
           ]
       )
     ])
+    (info { })
   ];
 }

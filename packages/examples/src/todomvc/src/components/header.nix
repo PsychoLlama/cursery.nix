@@ -6,25 +6,33 @@ let
   # Sits above the card, which leaves room for it.
   title = css {
     position = "absolute";
-    bottom = "100%";
+    top = "-140px";
     width = "100%";
-    margin = "0 0 1rem";
     text-align = "center";
-    font-size = "5rem";
+    font-size = "80px";
     font-weight = 200;
     color = "#b83f45";
+    text-rendering = "optimizeLegibility";
   };
 
   new-todo = css {
     box-sizing = "border-box";
     width = "100%";
-    padding = "1rem 1rem 1rem 3.75rem";
+    height = "65px";
+    margin = 0;
+    padding = "16px 16px 16px 60px";
     border = "none";
+    background = "rgb(0 0 0 / 0.003)";
+    box-shadow = "inset 0 -2px 1px rgb(0 0 0 / 0.03)";
     font = "inherit";
-    font-size = "1.5rem";
+    font-size = "24px";
+    line-height = "1.4em";
+    color = "inherit";
+    "&:focus".box-shadow = "0 0 2px 2px #cf7d7d";
     "&::placeholder" = {
       font-style = "italic";
-      color = "#999";
+      font-weight = 400;
+      color = "rgb(0 0 0 / 0.4)";
     };
   };
 in

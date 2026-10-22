@@ -3,22 +3,26 @@ let
   inherit (import <web/io>) dispatch;
   inherit (import <web/style>) css;
 
+  # Centered across the footer, behind the count and clear button.
   filters = css {
-    display = "flex";
-    gap = "0.5rem";
+    position = "absolute";
+    right = 0;
+    left = 0;
     margin = 0;
     padding = 0;
     list-style = "none";
+    "& li".display = "inline";
   };
 
   link = css {
-    padding = "0.125rem 0.5rem";
+    margin = "3px";
+    padding = "3px 7px";
     border = "1px solid transparent";
     border-radius = "3px";
     color = "inherit";
     text-decoration = "none";
-    "&:hover".border-color = "#f1d4d5";
-    "&[aria-current]".border-color = "#e9b8b9";
+    "&:hover".border-color = "#db7676";
+    "&[aria-current]".border-color = "#ce4646";
   };
 
   # Each filter by name, and its link's hash.
