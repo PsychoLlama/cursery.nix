@@ -214,6 +214,105 @@ describe("mount", () => {
   });
 });
 
+describe("properties", () => {
+  it("sets form state as properties, not attributes", () => {
+    using view = render(nix`{
+      render = state: [
+        (html.input { value = "text"; })
+        (html.input { type = "checkbox"; checked = true; })
+        (html.textarea { value = "area"; })
+      ];
+    }`);
+
+    const [text, checkbox] = view.container.querySelectorAll("input");
+
+    expect(view.container.innerHTML).toBe(
+      '<input><input type="checkbox"><textarea></textarea>',
+    );
+    expect(text!.value).toBe("text");
+    expect(checkbox!.checked).toBe(true);
+    expect(view.container.querySelector("textarea")!.value).toBe("area");
+  });
+
+  it("selects options", () => {
+    using view = render(nix`{
+      render = state: [
+        (html.select { value = "b"; } [ (html.option "a") (html.option "b") ])
+        (html.select [
+          (html.option "c")
+          (html.option { selected = true; } "d")
+        ])
+      ];
+    }`);
+
+    const [byValue, bySelected] = view.container.querySelectorAll("select");
+
+    expect(byValue!.value).toBe("b");
+    expect(bySelected!.value).toBe("d");
+  });
+
+  it("keeps attributes on other elements", () => {
+    using view = render(nix`{
+      render = state: [
+        (html.li { value = "3"; })
+        (element "my-input" { value = "a"; checked = true; })
+      ];
+    }`);
+
+    expect(view.container.innerHTML).toBe(
+      '<li value="3"></li><my-input checked="" value="a"></my-input>',
+    );
+  });
+
+  it("overwrites changes from people when patching", () => {
+    using view = render(nix`{
+      render = state: [
+        (html.input { value = "a"; })
+        (html.input { type = "checkbox"; checked = false; })
+      ];
+    }`);
+
+    const [text, checkbox] = view.container.querySelectorAll("input");
+    text!.value = "typed";
+    checkbox!.checked = true;
+    using next = app(nix`{
+      render = state: [
+        (html.input { value = "a"; })
+        (html.input { type = "checkbox"; checked = null; })
+      ];
+    }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(text!.value).toBe("a");
+    expect(checkbox!.checked).toBe(false);
+  });
+
+  it("leaves absent properties alone", () => {
+    using view = render(nix`{ render = state: html.input { value = "a"; }; }`);
+
+    const input = view.container.querySelector("input")!;
+    input.value = "typed";
+    using next = app(nix`{ render = state: html.input; }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(input.value).toBe("typed");
+  });
+
+  it("clears `null` values", () => {
+    using view = render(nix`{ render = state: html.input { value = null; }; }`);
+
+    const input = view.container.querySelector("input")!;
+    input.value = "typed";
+    using next = app(nix`{ render = state: html.input { value = null; }; }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(input.value).toBe("");
+  });
+});
+
 describe("state", () => {
   /** An app rendering `init` as JSON. */
   const counter = (init: string) => nix`{

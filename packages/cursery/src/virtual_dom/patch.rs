@@ -2,6 +2,9 @@
 //!
 //! Children are matched by position: `key` is ignored for now. Every change
 //! is planned before any is made, so an invalid tree leaves the DOM untouched.
+//!
+//! Attributes are diffed against the old tree. Properties (an input's
+//! `value`) are compared with the element instead, since people change them.
 
 use snix_eval::{NixList, Value};
 use wasm_bindgen::JsCast;
@@ -9,7 +12,7 @@ use web_sys::Document;
 
 use super::{
     create,
-    node::{Attributes, Node, utf8},
+    node::{Attributes, Node, Property, utf8},
 };
 use crate::error::Error;
 
@@ -32,6 +35,7 @@ pub(super) fn children(
 enum Change {
     SetAttribute(web_sys::Element, String, String),
     RemoveAttribute(web_sys::Element, String),
+    SetProperty(web_sys::Element, Property),
     SetText(web_sys::Node, String),
     Append(web_sys::Node, web_sys::Node),
     /// Parent, old child, new child.
@@ -44,6 +48,7 @@ impl Change {
         match self {
             Self::SetAttribute(element, name, value) => element.set_attribute(&name, &value)?,
             Self::RemoveAttribute(element, name) => element.remove_attribute(&name)?,
+            Self::SetProperty(element, property) => property.set(&element)?,
             Self::SetText(node, text) => node.set_node_value(Some(&text)),
             Self::Append(parent, node) => {
                 parent.append_child(&node)?;
@@ -108,8 +113,16 @@ impl Plan<'_> {
             }
             (Node::Element(old), Node::Element(new)) if old.tag()? == new.tag()? => {
                 let element: web_sys::Element = dom.unchecked_into();
-                self.attributes(&element, &old.attributes()?, &new.attributes()?)?;
+                let attributes = new.attributes()?;
+                self.attributes(&element, &old.attributes()?, &attributes)?;
                 self.children(&element, &old.children()?, &new.children()?)?;
+
+                // Compared with the element when applied, not the old tree:
+                // people change them. After children, like creating.
+                for property in attributes.properties()? {
+                    self.changes
+                        .push(Change::SetProperty(element.clone(), property));
+                }
             }
             (_, new) => {
                 let node = create::node(&new, self.document)?;

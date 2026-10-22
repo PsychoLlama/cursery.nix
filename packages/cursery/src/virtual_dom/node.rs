@@ -1,7 +1,9 @@
 //! Views over the Nix values `<web/dom>` builds. Reading one copies pointers,
 //! never contents.
 
+use js_sys::Reflect;
 use snix_eval::{NixAttrs, NixList, NixString, Value};
+use wasm_bindgen::JsValue;
 
 use crate::error::Error;
 
@@ -29,7 +31,10 @@ impl Element {
     }
 
     pub(super) fn attributes(&self) -> Result<Attributes, Error> {
-        Ok(Attributes(field(&self.0, "attrs")?.to_attrs()?))
+        Ok(Attributes {
+            attrs: field(&self.0, "attrs")?.to_attrs()?,
+            properties: properties(utf8(&self.tag()?)?),
+        })
     }
 
     pub(super) fn children(&self) -> Result<NixList, Error> {
@@ -60,25 +65,91 @@ impl Handlers {
 }
 
 /// Attribute values are strings, or null to omit them.
-pub(super) struct Attributes(NixAttrs);
+///
+/// Some are set as properties instead (see [`properties`]). The rest are
+/// attributes proper.
+pub(super) struct Attributes {
+    attrs: NixAttrs,
+    properties: &'static [&'static str],
+}
 
 impl Attributes {
-    /// Every name, sorted, including omitted attributes.
+    /// Every attribute name, sorted, including omitted attributes.
     pub(super) fn names(&self) -> impl Iterator<Item = &NixString> {
-        self.0.keys_sorted()
+        self.attrs.keys_sorted().filter(|name| {
+            !self
+                .properties
+                .iter()
+                .any(|property| name.as_bytes() == property.as_bytes())
+        })
     }
 
     /// Whether `name` is present, even if omitted.
     pub(super) fn contains(&self, name: &NixString) -> bool {
-        self.0.select(name).is_some()
+        self.attrs.select(name).is_some()
     }
 
     /// The value of `name`, or `None` if it's omitted.
     pub(super) fn get(&self, name: &NixString) -> Result<Option<NixString>, Error> {
-        match self.0.select(name).map(forced) {
+        match self.attrs.select(name).map(forced) {
             None | Some(Value::Null) => Ok(None),
             Some(value) => Ok(Some(string(&value)?)),
         }
+    }
+
+    /// Properties to set. Absent ones are left as they are, so the element
+    /// keeps whatever people did to it.
+    pub(super) fn properties(&self) -> Result<Vec<Property>, Error> {
+        let mut properties = Vec::new();
+        for &name in self.properties {
+            let Some(value) = self.attrs.select(name).map(forced) else {
+                continue;
+            };
+
+            let value = match (name, value) {
+                // Booleans arrive as `""` for true and null for false.
+                ("checked" | "selected", value) => {
+                    JsValue::from_bool(!matches!(value, Value::Null))
+                }
+                (_, Value::Null) => JsValue::from_str(""),
+                (_, value) => JsValue::from_str(utf8(&string(&value)?)?),
+            };
+
+            properties.push(Property { name, value });
+        }
+
+        Ok(properties)
+    }
+}
+
+/// An attribute set as a property.
+pub(super) struct Property {
+    name: &'static str,
+    value: JsValue,
+}
+
+impl Property {
+    /// Sets the property on `element`, unless it already holds the value.
+    /// Setting an input's value moves the caret, even to the same value.
+    pub(super) fn set(&self, element: &web_sys::Element) -> Result<(), Error> {
+        let name = JsValue::from_str(self.name);
+        if Reflect::get(element, &name)? != self.value {
+            Reflect::set(element, &name, &self.value)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Attributes of `tag` set as properties. Their attributes are only defaults
+/// (an input's `value` attribute doesn't change as people type), so the
+/// properties hold what the element shows now.
+fn properties(tag: &str) -> &'static [&'static str] {
+    match tag {
+        "input" => &["checked", "value"],
+        "textarea" | "select" => &["value"],
+        "option" => &["selected"],
+        _ => &[],
     }
 }
 

@@ -37,5 +37,10 @@ fn element(element: &Element, document: &Document) -> Result<web_sys::Element, E
         created.append_child(&node(&Node::from_value(child)?, document)?)?;
     }
 
+    // After children, so a select's options exist to choose from.
+    for property in attributes.properties()? {
+        property.set(&created)?;
+    }
+
     Ok(created)
 }

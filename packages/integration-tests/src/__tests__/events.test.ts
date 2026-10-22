@@ -109,6 +109,28 @@ describe("events", () => {
     expect(logged(view)).toEqual(["typed", true]);
   });
 
+  it("controls inputs with state", () => {
+    using view = render(nix`{
+      init = { draft = ""; todos = [ ]; };
+      update = state: action:
+        if action == "add" then { draft = ""; todos = state.todos ++ [ state.draft ]; }
+        else state // { draft = action; };
+      render = state: [
+        (html.input { value = state.draft; on.input = event: event.target.value; })
+        (html.button { on.click = event: "add"; } "Add")
+        (map html.li state.todos)
+      ];
+    }`);
+
+    const input = view.get("input") as HTMLInputElement;
+    input.value = "milk";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    view.get("button").click();
+
+    expect(view.get("li").textContent).toBe("milk");
+    expect(input.value).toBe("");
+  });
+
   it("bubbles from the target out", () => {
     using view = render(
       logger(nix`html.div { on.click = event: "outer"; } [
