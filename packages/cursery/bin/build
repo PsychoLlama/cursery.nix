@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Builds the wasm module and its JS bindings into `dist`, once per
+# environment (see `exports` in `package.json`):
+#
+# - `dist/node`: loads the `.wasm` file from disk.
+# - `dist/bundler`: imports it as a module, for bundlers that support that
+#   (Vite 8+, webpack's `asyncWebAssembly`).
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+cargo build --quiet --profile wasm --target wasm32-unknown-unknown
+wasm=../../target/wasm32-unknown-unknown/wasm/cursery.wasm
+
+rm -rf dist
+wasm-bindgen --target experimental-nodejs-module --out-dir dist/node "$wasm"
+wasm-bindgen --target bundler --out-dir dist/bundler "$wasm"

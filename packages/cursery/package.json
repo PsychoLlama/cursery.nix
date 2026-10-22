@@ -11,8 +11,20 @@
     "directory": "packages/cursery"
   },
   "type": "module",
-  "exports": "./dist/cursery.js",
+  "exports": {
+    ".": {
+      "node": {
+        "types": "./dist/node/cursery.d.ts",
+        "default": "./dist/node/cursery.js"
+      },
+      "default": {
+        "types": "./dist/bundler/cursery.d.ts",
+        "default": "./dist/bundler/cursery.js"
+      }
+    }
+  },
   "scripts": {
-    "build": "cargo build --quiet --profile wasm --target wasm32-unknown-unknown && wasm-bindgen --target experimental-nodejs-module --out-dir dist ../../target/wasm32-unknown-unknown/wasm/cursery.wasm"
+    "build": "bin/build",
+    "prepare": "bin/build"
   }
 }
