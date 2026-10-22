@@ -40,7 +40,7 @@ in
         else
           [
             (toggleAll { inherit (state) todos; })
-            (todoList { inherit (state) todos; })
+            (todoList { inherit (state) todos editing; })
             (footer { inherit (state) todos; })
           ]
       )

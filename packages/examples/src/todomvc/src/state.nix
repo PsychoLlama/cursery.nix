@@ -45,6 +45,29 @@ let
     toggleAll =
       state: completed: state // { todos = map (todo: todo // { inherit completed; }) state.todos; };
 
+    # Edits one todo at a time, by id.
+    edit = state: id: state // { editing = id; };
+
+    cancel = state: _: state // { editing = null; };
+
+    # Saves the edit, if it's still editing: the field saves when it loses
+    # focus, which it does when Enter or Escape removes it. Saving no text
+    # deletes the todo.
+    save =
+      state:
+      { id, text }:
+      let
+        done = state // {
+          editing = null;
+        };
+      in
+      if state.editing != id then
+        state
+      else if trim text == "" then
+        handlers.destroy done id
+      else
+        updateTodo done id (todo: todo // { text = trim text; });
+
     clearCompleted =
       state: _: state // { todos = builtins.filter (todo: !todo.completed) state.todos; };
   };
@@ -54,6 +77,7 @@ in
   init = {
     todos = [ ];
     nextId = 0;
+    editing = null;
   };
 
   update =

@@ -11,5 +11,13 @@ let
   };
 in
 
-{ todos }:
-html.ul { class = list; } (map (todo: todoItem { inherit todo; } { key = todo.id; }) todos)
+{ todos, editing }:
+html.ul { class = list; } (
+  map (
+    todo:
+    todoItem {
+      inherit todo;
+      editing = editing == todo.id;
+    } { key = todo.id; }
+  ) todos
+)
