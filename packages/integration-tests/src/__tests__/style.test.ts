@@ -133,12 +133,13 @@ describe("styles", () => {
       "default.nix": nix`let
         inherit (import <web/dom>) html;
         inherit (import <web/style>) css;
+        inherit (import <web/io>) dispatch;
       in {
         init = false;
         update = state: action: true;
         render = state: html.button {
           class = if state then css { color = "plum"; } else null;
-          on.click = event: true;
+          on.click = event: dispatch "style";
         } "Go";
       }`,
     });

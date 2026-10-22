@@ -1,5 +1,6 @@
 let
   inherit (import <web/dom>) html;
+  inherit (import <web/io>) dispatch;
 in
 
 {
@@ -7,7 +8,7 @@ in
     name = "world";
   };
 
-  update = state: name: state // { inherit name; };
+  update = state: action: state // { name = action.payload; };
 
   render =
     state:
@@ -17,7 +18,7 @@ in
         "Name: "
         (html.input {
           value = state.name;
-          on.input = event: event.target.value;
+          on.input = event: dispatch "rename" event.target.value;
         })
       ])
     ];

@@ -104,9 +104,11 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// }
 /// ```
 ///
-/// Handlers in `on` (see `<web/dom>`) return actions for `update`. Every
-/// action from an event is applied, then the app renders once. If a handler
-/// or `update` fails, the error is logged and the state is left as it was.
+/// Handlers in `on` (see `<web/dom>`) return effects, like `io.dispatch`
+/// from `<web/io>`, which runs `update` and renders. Handlers can also import
+/// a dispatch to run it immediately, getting the next state back. If a
+/// handler or `update` fails, the error is logged; earlier dispatches stay
+/// rendered.
 ///
 /// `styles` holds global rules by selector, as `css` from `<web/style>`
 /// takes them, e.g. `styles.body.margin = 0;`. They're adopted by the

@@ -17,6 +17,7 @@ use snix_eval::{
 };
 
 use crate::{
+    app,
     derivations::{self, Derivations, DerivationsIO},
     error::Error,
     events::Dispatching,
@@ -40,7 +41,9 @@ impl Session {
         let (filesystem, bundled_path) = store::snapshot();
         let source_map = SourceCode::default();
         let dispatching = Rc::new(Dispatching::default());
-        let derivations = Rc::new(Derivations::new(dispatching.builders()));
+        let derivations = Rc::new(Derivations::new(
+            dispatching.builders().chain(app::builders(&dispatching)),
+        ));
 
         // Building an evaluation prepares the globals for its source map.
         let globals = builder(&filesystem, &bundled_path, &derivations)

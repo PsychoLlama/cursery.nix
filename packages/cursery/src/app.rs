@@ -1,13 +1,17 @@
 //! Apps mounted into containers: rendering, and handling their events.
 
-use std::{path::PathBuf, rc::Rc};
+use std::{iter, path::PathBuf, rc::Rc};
 
-use snix_eval::{EvalMode, NixAttrs, Value};
+use snix_eval::{
+    EvalMode, NixAttrs, Value,
+    generators::{self, GenCo},
+};
 use web_sys::{Element, Event};
 
 use crate::{
+    derivations::{Builder, Inputs},
     error::Error,
-    events::{self, Listeners},
+    events::{self, Dispatching, Listeners},
     mounts::{self, Mount},
     session::Session,
     virtual_dom::{
@@ -75,9 +79,10 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
     commit(container, previous.as_ref(), mount)
 }
 
-/// Handles `event` for the app mounted into `container`. Each handler's
-/// action is applied in turn, then the app renders once. If any fails, the
-/// app is left as it was.
+/// Handles `event` for the app mounted into `container`, calling each
+/// handler in turn. Effects they return run as the renderer imports them,
+/// and `builtin:dispatch` renders as it goes: if a handler fails, earlier
+/// dispatches stay rendered.
 pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> {
     let Some(mount) = mounts::get(container) else {
         return Ok(());
@@ -89,44 +94,112 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
     }
 
     // Builders act on the event only while it dispatches.
-    let dispatch = mount.session.dispatching().start(event);
+    let dispatch = mount.session.dispatching().start(container, event);
     let event = events::snapshot(event, &dispatch)?;
-    let mut kept = None;
     for handler in handlers {
-        let result = mount.session.evaluate(
-            "renderer.handle kept handler event",
+        mount.session.evaluate(
+            "renderer.handle handler event",
             &[
                 ("renderer", mount.renderer.clone()),
-                ("kept", kept.clone().unwrap_or_else(|| mount.kept.clone())),
                 ("handler", handler),
                 ("event", event.clone()),
             ],
             EvalMode::Strict,
         )?;
-
-        if !is_null(&result) {
-            kept = Some(result);
-        }
     }
 
-    // Every handler ignored the event.
-    let Some(kept) = kept else {
-        return Ok(());
+    Ok(())
+}
+
+/// Builders acting on apps: `builtin:dispatch`.
+pub(crate) fn builders(dispatching: &Rc<Dispatching>) -> impl Iterator<Item = (String, Builder)> {
+    let dispatching = Rc::clone(dispatching);
+    let builder: Builder = Rc::new(move |co, inputs, passthru| {
+        let dispatching = Rc::clone(&dispatching);
+        Box::pin(async move { update(co, &dispatching, inputs, passthru).await })
+    });
+
+    iter::once(("builtin:dispatch".to_owned(), builder))
+}
+
+/// Applies the action a `dispatch` derivation describes to the app whose
+/// handlers are running, renders it, and returns the next state.
+///
+/// The action is `{ type = <action input>; payload = <passthru.payload>; }`,
+/// without `payload` if none was given.
+async fn update(
+    co: &GenCo,
+    dispatching: &Rc<Dispatching>,
+    inputs: Inputs,
+    passthru: Value,
+) -> Result<Value, String> {
+    let container = dispatching
+        .handling()
+        .ok_or("Cannot dispatch outside an event handler")?;
+    let mount = mounts::get(&container).ok_or_else(|| Error::NotMounted.to_string())?;
+    let action = action(co, inputs, passthru).await?;
+    if action.is_catchable() {
+        return Ok(action);
+    }
+
+    let renderer = generators::request_force(co, mount.renderer.clone()).await;
+    let renderer = renderer.to_attrs().map_err(|error| error.to_string())?;
+    let function = |name| {
+        renderer
+            .select(name)
+            .cloned()
+            .ok_or_else(|| Error::InvalidRenderer(format!("missing {name:?}")).to_string())
     };
 
-    let tree = mount.session.evaluate(
-        "renderer.view kept",
-        &[("renderer", mount.renderer.clone()), ("kept", kept.clone())],
-        EvalMode::Strict,
-    )?;
+    // `update` and `render` can't dispatch.
+    let paused = dispatching.pause();
+    let kept =
+        generators::request_call_with(co, function("update")?, [mount.kept.clone(), action]).await;
+    let kept = generators::request_deep_force(co, kept).await;
+    if kept.is_catchable() {
+        return Ok(kept);
+    }
 
+    let tree = generators::request_call_with(co, function("view")?, [kept.clone()]).await;
+    let tree = generators::request_deep_force(co, tree).await;
+    if tree.is_catchable() {
+        return Ok(tree);
+    }
+    drop(paused);
+
+    let attrs = kept.to_attrs().map_err(|error| error.to_string())?;
+    let state = attrs.select("state").cloned().unwrap_or(Value::Null);
     let next = Mount {
         tree,
         kept,
         ..mount.clone()
     };
 
-    commit(container, Some(&mount), next)
+    commit(&container, Some(&mount), next).map_err(|error| error.to_string())?;
+    Ok(state)
+}
+
+/// The action a `dispatch` derivation describes, or a catchable error from
+/// forcing its `passthru`.
+async fn action(co: &GenCo, inputs: Inputs, passthru: Value) -> Result<Value, String> {
+    let kind = inputs
+        .get("action")
+        .ok_or("Cannot dispatch without an `action`")?;
+    let mut fields = vec![("type", Value::from(kind.clone()))];
+
+    let passthru = generators::request_force(co, passthru).await;
+    if passthru.is_catchable() {
+        return Ok(passthru);
+    }
+
+    if !matches!(passthru, Value::Null) {
+        let passthru = passthru.to_attrs().map_err(|error| error.to_string())?;
+        if let Some(payload) = passthru.select("payload") {
+            fields.push(("payload", payload.clone()));
+        }
+    }
+
+    Ok(Value::attrs(NixAttrs::from_iter(fields)))
 }
 
 /// Renders `mount` into `container`, patching from `previous`, and records it.

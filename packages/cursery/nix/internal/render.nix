@@ -6,7 +6,9 @@
 #     # Initial state. Without it, state is `{ }`.
 #     init = { count = 0; };
 #
-#     # Returns the next state, given the current one and an action.
+#     # Returns the next state, given the current one and an action
+#     # dispatched with `io.dispatch` from `<web/io>`:
+#     # `{ type; payload; }`, without `payload` if none was given.
 #     update = state: action: state;
 #
 #     # Returns children, like any element accepts.
@@ -76,20 +78,32 @@ in
         if checked.styles or { } == { } then null else "@layer base { ${css.global checked.styles} }";
     };
 
-  # Calls an event handler, returning what to keep after its action, or
-  # `null` if it ignored the event.
+  # Calls an event handler. It returns an effect to run, like `io.dispatch`,
+  # or `null` to ignore the event. A failed effect throws its error.
   handle =
-    kept: handler: snapshot:
+    handler: snapshot:
     let
-      action = handler (event snapshot);
+      effect = handler (event snapshot);
+      result = import effect;
     in
-    if action == null then
+    if effect == null then
       null
-    else if kept == null then
+    else if !(builtins.isAttrs effect && effect.type or null == "derivation") then
+      throw "Invalid handler result of type ${builtins.typeOf effect}: expected an effect, like `io.dispatch`, or null"
+    else if result.type == "error" then
+      throw result.error
+    else
+      null;
+
+  # Applies an action to what `mount` or `update` kept, for
+  # `builtin:dispatch`.
+  update =
+    kept: action:
+    if kept == null then
       throw "Received an action without an `update` to handle it"
     else
       { state = checked.update kept.state action; };
 
-  # Renders children from what `mount` or `handle` kept.
+  # Renders children from what `mount` or `update` kept.
   inherit view;
 }

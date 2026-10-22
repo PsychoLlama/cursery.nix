@@ -2,10 +2,17 @@ import * as cursery from "cursery";
 
 import { load, mount, nix } from "../testing.ts";
 
-/** Loads an app whose `default.nix` has the DOM builders in scope. */
+/**
+ * Loads an app whose `default.nix` has the DOM builders, `dispatch`, and
+ * `log` (dispatching a `log` action) in scope.
+ */
 function app(code: string) {
   return load({
-    "default.nix": nix`let inherit (import <web/dom>) html; in ${code}`,
+    "default.nix": nix`let
+      inherit (import <web/dom>) html;
+      inherit (import <web/io>) dispatch;
+      log = dispatch "log";
+    in ${code}`,
   });
 }
 
@@ -24,10 +31,10 @@ function render(code: string) {
   };
 }
 
-/** Logs actions, rendering the log as JSON in a `<pre>`, around `view`. */
+/** Logs payloads, rendering the log as JSON in a `<pre>`, around `view`. */
 const logger = (view: string) => nix`{
   init = [ ];
-  update = state: action: state ++ [ action ];
+  update = state: action: state ++ [ action.payload ];
   render = state: [ (html.pre (builtins.toJSON state)) (${view}) ];
 }`;
 
@@ -40,8 +47,8 @@ describe("events", () => {
   it("dispatches actions to `update`", () => {
     using view = render(nix`{
       init = { count = 0; };
-      update = state: action: { count = state.count + action; };
-      render = state: html.button { on.click = event: 1; } state.count;
+      update = state: action: { count = state.count + action.payload; };
+      render = state: html.button { on.click = event: dispatch "add" 1; } state.count;
     }`);
 
     view.get("button").click();
@@ -63,7 +70,7 @@ describe("events", () => {
   it("passes a snapshot of the event", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: { inherit (event) type button shiftKey; };
+        on.click = event: log { inherit (event) type button shiftKey; };
       }`),
     );
 
@@ -81,9 +88,9 @@ describe("events", () => {
   it("skips constants and objects in snapshots", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: builtins.filter (name: builtins.elem name [
+        on.click = event: log (builtins.filter (name: builtins.elem name [
           "AT_TARGET" "view" "currentTarget" "isTrusted"
-        ]) (builtins.attrNames event);
+        ]) (builtins.attrNames event));
       }`),
     );
 
@@ -95,8 +102,8 @@ describe("events", () => {
   it("includes form fields of the target", () => {
     using view = render(
       logger(nix`[
-        (html.input { on.input = event: event.target.value; })
-        (html.input { type = "checkbox"; on.change = event: event.target.checked; })
+        (html.input { on.input = event: log event.target.value; })
+        (html.input { type = "checkbox"; on.change = event: log event.target.checked; })
       ]`),
     );
 
@@ -113,11 +120,11 @@ describe("events", () => {
     using view = render(nix`{
       init = { draft = ""; todos = [ ]; };
       update = state: action:
-        if action == "add" then { draft = ""; todos = state.todos ++ [ state.draft ]; }
-        else state // { draft = action; };
+        if action.type == "add" then { draft = ""; todos = state.todos ++ [ state.draft ]; }
+        else state // { draft = action.payload; };
       render = state: [
-        (html.input { value = state.draft; on.input = event: event.target.value; })
-        (html.button { on.click = event: "add"; } "Add")
+        (html.input { value = state.draft; on.input = event: dispatch "edit" event.target.value; })
+        (html.button { on.click = event: dispatch "add"; } "Add")
         (map html.li state.todos)
       ];
     }`);
@@ -133,9 +140,9 @@ describe("events", () => {
 
   it("bubbles from the target out", () => {
     using view = render(
-      logger(nix`html.div { on.click = event: "outer"; } [
-        (html.p { on.click = event: "middle"; } [
-          (html.button { on.click = event: "inner"; })
+      logger(nix`html.div { on.click = event: log "outer"; } [
+        (html.p { on.click = event: log "middle"; } [
+          (html.button { on.click = event: log "inner"; })
         ])
       ]`),
     );
@@ -147,8 +154,8 @@ describe("events", () => {
 
   it("only calls the target for events that don't bubble", () => {
     using view = render(
-      logger(nix`html.div { on.focus = event: "outer"; } [
-        (html.input { on.focus = event: "inner"; })
+      logger(nix`html.div { on.focus = event: log "outer"; } [
+        (html.input { on.focus = event: log "inner"; })
       ]`),
     );
 
@@ -160,7 +167,9 @@ describe("events", () => {
 
   it("overrides handlers with `null`", () => {
     using view = render(
-      logger(nix`html.button { on.click = event: "a"; } { on.click = null; }`),
+      logger(
+        nix`html.button { on.click = event: log "a"; } { on.click = null; }`,
+      ),
     );
 
     view.get("button").click();
@@ -186,11 +195,13 @@ describe("events", () => {
   });
 
   it("uses handlers from the latest mount", () => {
-    using view = render(logger(nix`html.button { on.click = event: "old"; }`));
+    using view = render(
+      logger(nix`html.button { on.click = event: log "old"; }`),
+    );
     using next = app(
       logger(nix`html.button {
-        on.click = event: "new";
-        on.dblclick = event: "added";
+        on.click = event: log "new";
+        on.dblclick = event: log "added";
       }`),
     );
 
@@ -202,7 +213,9 @@ describe("events", () => {
   });
 
   it("stops listening on unmount", () => {
-    using files = app(logger(nix`html.button { on.click = event: "click"; }`));
+    using files = app(
+      logger(nix`html.button { on.click = event: log "click"; }`),
+    );
     const container = document.createElement("div");
     cursery.mount(container, files.path);
     cursery.unmount(container);
@@ -233,9 +246,9 @@ describe("events", () => {
       using view = render(nix`{
         init = { count = 0; };
         update = state: action:
-          if action == "boom" then throw "update failed" else { count = 1; };
-        render = state: html.p { on.click = event: "ok"; } [
-          (html.button { on.click = event: "boom"; } state.count)
+          if action.type == "boom" then throw "update failed" else { count = 1; };
+        render = state: html.p { on.click = event: dispatch "ok"; } [
+          (html.button { on.click = event: dispatch "boom"; } state.count)
         ];
       }`);
 
@@ -254,7 +267,7 @@ describe("events", () => {
 
     it("logs when an app without `update` dispatches", () => {
       using view = render(nix`{
-        render = state: html.button { on.click = event: "action"; };
+        render = state: html.button { on.click = event: dispatch "action"; };
       }`);
 
       expect(click(view)).toEqual([
@@ -268,7 +281,7 @@ describe("events", () => {
         update = state: action: state + 1;
         render = state:
           if state > 0 then throw "render failed"
-          else html.button { on.click = event: 1; } state;
+          else html.button { on.click = event: dispatch "next"; } state;
       }`);
 
       expect(click(view)).toEqual([expect.stringMatching(/render failed/)]);

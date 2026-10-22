@@ -98,18 +98,37 @@ impl Drop for Listeners {
 pub(crate) struct Dispatching {
     events: RefCell<FxHashMap<i64, Event>>,
     next_id: Cell<i64>,
+
+    /// Containers whose handlers are running, innermost last. `None` while
+    /// a dispatch runs `update` and `render`, which can't dispatch.
+    handling: RefCell<Vec<Option<Element>>>,
 }
 
 impl Dispatching {
-    /// Tracks `event` until the returned guard drops.
-    pub(crate) fn start(self: &Rc<Self>, event: &Event) -> Dispatch {
+    /// Tracks `event`, dispatching to the app in `container`, until the
+    /// returned guard drops.
+    pub(crate) fn start(self: &Rc<Self>, container: &Element, event: &Event) -> Dispatch {
         let id = self.next_id.get();
         self.next_id.set(id + 1);
         self.events.borrow_mut().insert(id, event.clone());
+        self.handling.borrow_mut().push(Some(container.clone()));
 
         Dispatch {
             dispatching: Rc::clone(self),
             id,
+        }
+    }
+
+    /// The container whose handlers are running, if they can dispatch.
+    pub(crate) fn handling(&self) -> Option<Element> {
+        self.handling.borrow().last().cloned().flatten()
+    }
+
+    /// Stops handlers dispatching until the returned guard drops.
+    pub(crate) fn pause(self: &Rc<Self>) -> Paused {
+        self.handling.borrow_mut().push(None);
+        Paused {
+            dispatching: Rc::clone(self),
         }
     }
 
@@ -162,6 +181,19 @@ pub(crate) struct Dispatch {
 impl Drop for Dispatch {
     fn drop(&mut self) {
         self.dispatching.events.borrow_mut().remove(&self.id);
+        self.dispatching.handling.borrow_mut().pop();
+    }
+}
+
+/// Dispatching paused, until dropped.
+#[derive(Debug)]
+pub(crate) struct Paused {
+    dispatching: Rc<Dispatching>,
+}
+
+impl Drop for Paused {
+    fn drop(&mut self) {
+        self.dispatching.handling.borrow_mut().pop();
     }
 }
 

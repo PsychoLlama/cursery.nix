@@ -14,10 +14,10 @@
 #
 #   html.div { class = [ card "p-4" (if active then "ring" else null) ]; }
 #
-# Handlers in `on` take a snapshot of the event and return an action for the
-# app's `update`, or `null` to ignore the event:
+# Handlers in `on` take a snapshot of the event and return an effect, like
+# `io.dispatch` from `<web/io>`, or `null` to ignore the event:
 #
-#   html.button { on.click = event: { type = "increment"; }; } "+"
+#   html.button { on.click = event: io.dispatch "increment"; } "+"
 #
 # Snapshots describe effects on the event too, run by importing them:
 #
@@ -48,8 +48,8 @@ let
     else
       throw "Invalid attribute \"${name}\" of type ${builtins.typeOf value}: expected a string, number, boolean, or null";
 
-  # Event handlers take an event and return an action for `update`, or `null`
-  # to ignore it. A `null` handler overrides an earlier one, like attributes.
+  # Event handlers take an event and return an effect, or `null` to ignore
+  # it. A `null` handler overrides an earlier one, like attributes.
   handler =
     name: value:
     if builtins.isFunction value || value == null then

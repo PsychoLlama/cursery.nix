@@ -1,11 +1,18 @@
 import { load, mount, nix } from "../testing.ts";
 
-/** Loads and mounts an app with the DOM builders in scope. */
+/**
+ * Loads and mounts an app with the DOM builders, `dispatch`, and `log`
+ * (dispatching a `log` action) in scope.
+ */
 function render(code: string) {
   using resources = new DisposableStack();
   const { path } = resources.use(
     load({
-      "default.nix": nix`let inherit (import <web/dom>) html; in ${code}`,
+      "default.nix": nix`let
+      inherit (import <web/dom>) html;
+      inherit (import <web/io>) dispatch;
+      log = dispatch "log";
+    in ${code}`,
     }),
   );
   const { container } = resources.use(mount(path));
@@ -18,10 +25,10 @@ function render(code: string) {
   };
 }
 
-/** Logs actions, rendering the log as JSON in a `<pre>`, around `view`. */
+/** Logs payloads, rendering the log as JSON in a `<pre>`, around `view`. */
 const logger = (view: string) => nix`{
   init = [ ];
-  update = state: action: state ++ [ action ];
+  update = state: action: state ++ [ action.payload ];
   render = state: [ (html.pre (builtins.toJSON state)) (${view}) ];
 }`;
 
@@ -41,7 +48,7 @@ describe("derivations", () => {
   it("runs a derivation when imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: import (event.preventDefault { });
+        on.click = event: log (import (event.preventDefault { }));
       }`),
     );
 
@@ -52,7 +59,7 @@ describe("derivations", () => {
   it("only describes the effect until imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: (event.preventDefault { }).type;
+        on.click = event: log (event.preventDefault { }).type;
       }`),
     );
 
@@ -62,7 +69,7 @@ describe("derivations", () => {
 
   it("hides the event's `__id`", () => {
     using view = render(
-      logger(nix`html.button { on.click = event: event ? __id; }`),
+      logger(nix`html.button { on.click = event: log (event ? __id); }`),
     );
 
     view.get("button").click();
@@ -77,7 +84,7 @@ describe("derivations", () => {
           let
             drv = derivation { name = "example"; builder = "none"; type = "other"; };
           in
-          { inherit (drv) name builder type; };
+          log { inherit (drv) name builder type; };
       }`),
     );
 
@@ -95,7 +102,7 @@ describe("derivations", () => {
           let
             output = attrs: (derivation ({ name = "example"; builder = "none"; } // attrs)).outPath;
           in
-          {
+          log {
             path = output { };
             same = output { } == output { };
             attrs = output { } != output { extra = 1; };
@@ -123,7 +130,7 @@ describe("derivations", () => {
           let
             drv = passthru: derivation { name = "example"; builder = "none"; inherit passthru; };
           in
-          {
+          log {
             same = (drv 1).outPath == (drv 2).outPath;
             # Functions can't be coerced, so this would throw if hashed.
             value = (drv { f = x: x * 2; }).passthru.f 3;
@@ -139,7 +146,7 @@ describe("derivations", () => {
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: (event.preventDefault { }).outPath;
+        on.click = event: log (event.preventDefault { }).outPath;
       }`),
     );
 
@@ -153,10 +160,10 @@ describe("derivations", () => {
   it("reports unknown builders", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: import (derivation {
+        on.click = event: log (import (derivation {
           name = "missing";
           builder = "builtin:missing";
-        });
+        }));
       }`),
     );
 
@@ -170,16 +177,16 @@ describe("derivations", () => {
   it("fails builders on events that finished dispatching", () => {
     using view = render(nix`{
       init = { effect = null; result = null; };
-      update = state: action: state // action;
+      update = state: action: state // action.payload;
       render = state: [
         (html.pre (builtins.toJSON state.result))
         (html.button {
           id = "keep";
-          on.click = event: { effect = event.preventDefault { }; };
+          on.click = event: dispatch "set" { effect = event.preventDefault { }; };
         })
         (html.button {
           id = "run";
-          on.click = event: { result = import state.effect; };
+          on.click = event: dispatch "set" { result = import state.effect; };
         })
       ];
     }`);
@@ -198,10 +205,10 @@ describe("derivations", () => {
   it("reports missing events", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: map (attrs: import (derivation ({
+        on.click = event: log (map (attrs: import (derivation ({
           name = "preventDefault";
           builder = "builtin:preventDefault";
-        } // attrs))) [ { } { event = "nope"; } { event = 1000000; } ];
+        } // attrs))) [ { } { event = "nope"; } { event = 1000000; } ]);
       }`),
     );
 
