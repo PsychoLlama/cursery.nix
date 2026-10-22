@@ -79,7 +79,7 @@ in
     };
 
   # Calls an event handler. It returns an effect to run, like `io.dispatch`,
-  # or `null` to ignore the event. A failed effect throws its error.
+  # or `null` to ignore the event. A failed effect throws.
   handle =
     handler: snapshot:
     let
@@ -90,10 +90,8 @@ in
       null
     else if !(builtins.isAttrs effect && effect.type or null == "derivation") then
       throw "Invalid handler result of type ${builtins.typeOf effect}: expected an effect, like `io.dispatch`, or null"
-    else if result.type == "error" then
-      throw result.error
     else
-      null;
+      builtins.seq result null;
 
   # Applies an action to what `mount` or `update` kept, for
   # `builtin:dispatch`.

@@ -126,7 +126,7 @@ describe("dispatch", () => {
             on.click = event:
               let result = import (dispatch "increment"); in
               # Forced here: forced lazily, in \`update\`, it couldn't dispatch.
-              if result.type == "success" then dispatch "see" result else null;
+              builtins.seq result (dispatch "see" result);
           })
         ];
       }`);
@@ -135,7 +135,7 @@ describe("dispatch", () => {
 
       expect(shown(view)).toEqual({
         count: 1,
-        seen: { type: "success", value: { count: 1, seen: null } },
+        seen: { count: 1, seen: null },
       });
     });
 
@@ -151,7 +151,7 @@ describe("dispatch", () => {
                 first = import (dispatch "increment");
                 second = import (dispatch "increment");
               in
-              if first.value == 1 && second.value == 2 then null else throw "not run twice";
+              if first == 1 && second == 2 then null else throw "not run twice";
           })
         ];
       }`);
@@ -170,7 +170,7 @@ describe("dispatch", () => {
           (html.button {
             on.click = event:
               let result = import (dispatch "increment"); in
-              if result.type == "success" then throw "later" else null;
+              if result == 1 then throw "later" else null;
           })
         ];
       }`);
@@ -180,14 +180,9 @@ describe("dispatch", () => {
     });
 
     it("can't dispatch while rendering", () => {
-      using view = render(nix`{
-        render = state: html.pre (builtins.toJSON (import (dispatch "render")));
-      }`);
-
-      expect(shown(view)).toEqual({
-        type: "error",
-        error: "Cannot dispatch outside an event handler",
-      });
+      expect(() =>
+        render(nix`{ render = state: import (dispatch "render"); }`),
+      ).toThrow(/Cannot dispatch outside an event handler/);
     });
 
     it("can't dispatch from `update`", () => {
@@ -200,12 +195,10 @@ describe("dispatch", () => {
         ];
       }`);
 
-      view.get("button").click();
-
-      expect(shown(view)).toEqual({
-        type: "error",
-        error: "Cannot dispatch outside an event handler",
-      });
+      expect(errors(view)).toEqual([
+        expect.stringMatching(/Cannot dispatch outside an event handler/),
+      ]);
+      expect(shown(view)).toBe(null);
     });
   });
 

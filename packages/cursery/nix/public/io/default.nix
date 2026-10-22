@@ -8,9 +8,8 @@
 #
 # `update` gets `{ type; payload; }`, without `payload` if none was given.
 # Return a dispatch from a handler to run it, or import it in a handler to
-# run it now: it updates, renders, then returns the next state as
-# `{ type = "success"; value; }`. Imports run when forced, so force the
-# result in the handler: forced later, e.g. in `update`, it can't dispatch.
+# run it now: it updates, renders, then returns the next state, or throws if
+# it failed. Imports run when forced, so force the result in the handler: forced later, e.g. in `update`, it can't dispatch.
 #
 # Each dispatch hashes the current generation, so importing the same action
 # again, e.g. twice in one handler, runs it again.

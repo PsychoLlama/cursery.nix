@@ -11,8 +11,8 @@
 //!     event = snapshot.__id;
 //!   }
 //!
-//! The import evaluates to `{ type = "success"; value; }`, or
-//! `{ type = "error"; error; }` if the effect failed.
+//! The import evaluates to the effect's result, or throws if it failed. The
+//! throw is catchable (`tryEval`), unlike a failed import.
 //!
 //! Builders are strings naming host effects, like Nix's `builtin:fetchurl`.
 //! They see the derivation's attributes as inputs, coerced to strings as by
@@ -291,13 +291,16 @@ mod derivation_builtins {
     use std::{path::PathBuf, rc::Rc};
 
     use snix_eval::{
-        ErrorKind, NixAttrs, Value,
+        CatchableErrorKind, ErrorKind, Value,
         generators::{Gen, GenCo},
     };
 
     use super::{Derivations, Recorded};
 
-    /// Runs the derivation that outputs `path`, through its builder.
+    /// Runs the derivation that outputs `path`, through its builder,
+    /// returning its result or throwing why it failed. Imported outputs
+    /// call this, keeping the source they're served as short: imports are
+    /// cached and their source is never freed.
     #[builtin("realise")]
     async fn builtin_realise(
         state: Rc<Derivations>,
@@ -317,15 +320,6 @@ mod derivation_builtins {
         };
         state.advance();
 
-        let fields = match result {
-            Ok(value) if value.is_catchable() => return Ok(value),
-            Ok(value) => [("type", Value::from("success")), ("value", value)],
-            Err(error) => [
-                ("type", Value::from("error")),
-                ("error", Value::from(error)),
-            ],
-        };
-
-        Ok(Value::attrs(NixAttrs::from_iter(fields)))
+        Ok(result.unwrap_or_else(|error| CatchableErrorKind::Throw(error.into()).into()))
     }
 }

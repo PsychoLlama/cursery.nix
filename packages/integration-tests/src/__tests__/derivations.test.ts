@@ -53,7 +53,7 @@ describe("derivations", () => {
     );
 
     expect(click(view.get("button"))).toBe(true);
-    expect(logged(view)).toEqual([{ type: "success", value: null }]);
+    expect(logged(view)).toEqual([null]);
   });
 
   it("only describes the effect until imported", () => {
@@ -165,7 +165,7 @@ describe("derivations", () => {
             before = builtins.__currentGeneration event;
             built = import (event.preventDefault { });
           in
-          if before >= 0 && built.type == "success" then
+          if before >= 0 && built == null then
             log (builtins.__currentGeneration built > before)
           else
             null;
@@ -191,80 +191,43 @@ describe("derivations", () => {
     expect(first).not.toBe(second);
   });
 
-  it("reports unknown builders", () => {
-    using view = render(
-      logger(nix`html.button {
-        on.click = event: log (import (derivation {
-          name = "missing";
-          builder = "builtin:missing";
-        }));
-      }`),
-    );
-
-    view.get("button").click();
-
-    expect(logged(view)).toEqual([
-      { type: "error", error: 'Unknown builder "builtin:missing"' },
-    ]);
-  });
-
   it("fails builders on events that finished dispatching", () => {
     using view = render(nix`{
-      init = { effect = null; result = null; };
-      update = state: action: state // action.payload;
+      init = null;
+      update = state: action: action.payload;
       render = state: [
-        (html.pre (builtins.toJSON state.result))
         (html.button {
           id = "keep";
-          on.click = event: dispatch "set" { effect = event.preventDefault { }; };
+          on.click = event: dispatch "keep" (event.preventDefault { });
         })
-        (html.button {
-          id = "run";
-          on.click = event: dispatch "set" { result = import state.effect; };
-        })
+        (html.button { id = "run"; on.click = event: import state; })
       ];
     }`);
 
     view.get("#keep").click();
 
+    using error = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(click(view.get("#run"))).toBe(false);
-    expect(logged(view)).toEqual({
-      type: "error",
-      error: expect.stringMatching(
-        /^Cannot preventDefault: event \d+ finished dispatching$/,
+    expect(error.mock.calls.map(([message]) => String(message))).toEqual([
+      expect.stringMatching(
+        /Cannot preventDefault: event \d+ finished dispatching/,
       ),
-    });
+    ]);
   });
 
-  it("reports missing events", () => {
+  it("throws catchably when a build fails", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (map (attrs: import (derivation ({
-          name = "preventDefault";
-          builder = "builtin:preventDefault";
-        } // attrs))) [ { } { event = "nope"; } { event = 1000000; } ]);
+        on.click = event: log (builtins.tryEval (import (derivation {
+          name = "missing";
+          builder = "builtin:missing";
+        }))).success;
       }`),
     );
 
-    expect(click(view.get("button"))).toBe(false);
-    expect(logged(view)).toEqual([
-      [
-        {
-          type: "error",
-          error:
-            "Cannot preventDefault without an event: set `event` to the event's `__id`",
-        },
-        {
-          type: "error",
-          error:
-            'Cannot preventDefault: `event` is "nope", which is not an event\'s `__id`',
-        },
-        {
-          type: "error",
-          error: expect.stringMatching(/which is not an event's `__id`$/),
-        },
-      ],
-    ]);
+    view.get("button").click();
+
+    expect(logged(view)).toEqual([false]);
   });
 
   describe("errors", () => {
@@ -277,6 +240,34 @@ describe("derivations", () => {
       view.get("button").click();
       return error.mock.calls.map(([message]) => String(message));
     }
+
+    it("reports unknown builders", () => {
+      expect(
+        errors(
+          nix`import (derivation { name = "missing"; builder = "builtin:missing"; })`,
+        ),
+      ).toEqual([expect.stringMatching(/Unknown builder/)]);
+    });
+
+    it("reports missing events", () => {
+      const prevent = (attrs: string) =>
+        errors(nix`import (derivation ({
+          name = "preventDefault";
+          builder = "builtin:preventDefault";
+        } // ${attrs}))`);
+
+      expect(prevent(nix`{ }`)).toEqual([
+        expect.stringMatching(/Cannot preventDefault without an event/),
+      ]);
+      expect(prevent(nix`{ event = "nope"; }`)).toEqual([
+        expect.stringMatching(
+          /`event` is \\"nope\\", which is not an event's `__id`/,
+        ),
+      ]);
+      expect(prevent(nix`{ event = 1000000; }`)).toEqual([
+        expect.stringMatching(/which is not an event's `__id`/),
+      ]);
+    });
 
     it("validates names", () => {
       expect(
