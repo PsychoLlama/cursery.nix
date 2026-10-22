@@ -4,7 +4,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "lib": ["es2024", "esnext.disposable", "dom"],
-    "types": ["vite/client"],
+    "types": ["vite/client", "cursery/vite-plugin/client"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

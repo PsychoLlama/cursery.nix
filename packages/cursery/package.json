@@ -21,10 +21,35 @@
         "types": "./dist/bundler/cursery.d.ts",
         "default": "./dist/bundler/cursery.js"
       }
+    },
+    "./vite-plugin": {
+      "types": "./dist/vite-plugin/index.d.ts",
+      "default": "./dist/vite-plugin/index.js"
+    },
+    "./vite-plugin/runtime": {
+      "types": "./dist/vite-plugin/runtime.d.ts",
+      "default": "./dist/vite-plugin/runtime.js"
+    },
+    "./vite-plugin/client": {
+      "types": "./vite-plugin/client.d.ts"
     }
   },
   "scripts": {
     "build": "bin/build",
-    "prepare": "bin/build"
+    "prepare": "bin/build",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "rolldown-plugin-dts": "^0.28.8",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  },
+  "peerDependencies": {
+    "vite": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
   }
 }

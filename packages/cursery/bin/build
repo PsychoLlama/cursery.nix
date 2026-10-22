@@ -15,3 +15,6 @@ wasm=../../target/wasm32-unknown-unknown/wasm/cursery.wasm
 rm -rf dist
 wasm-bindgen --target experimental-nodejs-module --out-dir dist/node "$wasm"
 wasm-bindgen --target bundler --out-dir dist/bundler "$wasm"
+
+# The Vite plugin, which imports the bindings above.
+node_modules/.bin/vite build --logLevel warn
