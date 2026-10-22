@@ -219,3 +219,107 @@ describe("styles", () => {
     );
   });
 });
+
+describe("global styles", () => {
+  /** Loads an app with `styles`. */
+  const app = (styles: string) =>
+    load({
+      "default.nix": nix`{ styles = ${styles}; render = state: "hi"; }`,
+    });
+
+  it("adopts rules for selectors in `@layer base`", () => {
+    using styled = app(nix`{ body.margin = "1rem"; }`);
+    using _ = mount(styled.path);
+
+    expect(loaded()).toContainEqual(
+      expect.stringMatching(/^@layer base \{\s*body \{ margin: 1rem; \}\s*\}$/),
+    );
+  });
+
+  it("repeats blocks for lists of rules", () => {
+    using styled = app(nix`{
+      "@font-face" = [ { font-family = "One"; } { font-family = "Two"; } ];
+    }`);
+    using _ = mount(styled.path);
+    const rule = loaded().find((rule) => rule.includes("One"));
+
+    expect(rule).toMatch(/@font-face \{ font-family: One; \}/);
+    expect(rule).toMatch(/@font-face \{ font-family: Two; \}/);
+  });
+
+  it("replaces rules when mounting again", () => {
+    using before = app(nix`{ body.color = "maroon"; }`);
+    using after = app(nix`{ body.color = "salmon"; }`);
+    using view = mount(before.path);
+
+    cursery.mount(view.container, after.path);
+
+    expect(loaded().join()).not.toMatch(/maroon/);
+    expect(loaded().join()).toMatch(/salmon/);
+  });
+
+  it("keeps the sheet while rules are unchanged", () => {
+    using styled = app(nix`{ body.color = "khaki"; }`);
+    using view = mount(styled.path);
+    const [sheet] = document.adoptedStyleSheets.slice(-1);
+
+    cursery.mount(view.container, styled.path);
+
+    expect(document.adoptedStyleSheets).toContain(sheet);
+    expect(loaded().filter((rule) => rule.includes("khaki"))).toHaveLength(1);
+  });
+
+  it("removes rules the app no longer has", () => {
+    using styled = app(nix`{ body.color = "orchid"; }`);
+    using plain = load({ "default.nix": nix`{ render = state: "hi"; }` });
+    using view = mount(styled.path);
+
+    cursery.mount(view.container, plain.path);
+
+    expect(loaded().join()).not.toMatch(/orchid/);
+  });
+
+  it("removes rules on unmount", () => {
+    using styled = app(nix`{ body.color = "sienna"; }`);
+    const { container } = mount(styled.path);
+
+    cursery.unmount(container);
+
+    expect(loaded().join()).not.toMatch(/sienna/);
+  });
+
+  it("keeps rules when mounting fails", () => {
+    using styled = app(nix`{ body.color = "indigo"; }`);
+    using broken = load({
+      "default.nix": nix`{ styles.body.color = "lime"; render = state: throw "boom"; }`,
+    });
+    using view = mount(styled.path);
+
+    expect(() => cursery.mount(view.container, broken.path)).toThrow(/boom/);
+    expect(loaded().join()).toMatch(/indigo/);
+    expect(loaded().join()).not.toMatch(/lime/);
+  });
+
+  it("adopts rules in shadow roots", () => {
+    const root = document.createElement("div").attachShadow({ mode: "open" });
+    const container = root.appendChild(document.createElement("div"));
+    using styled = app(nix`{ body.color = "peru"; }`);
+    using _ = mount(styled.path, container);
+
+    expect(loaded(root).join()).toMatch(/peru/);
+  });
+
+  it("rejects declarations without a selector", () => {
+    using styled = app(nix`{ color = "red"; }`);
+
+    expect(() => mount(styled.path)).toThrow(
+      /Invalid global style \W*color\W*: expected a selector/,
+    );
+  });
+
+  it("rejects styles that aren't attrsets", () => {
+    using styled = app(nix`"body { margin: 0; }"`);
+
+    expect(() => mount(styled.path)).toThrow(/Invalid `styles` of type string/);
+  });
+});

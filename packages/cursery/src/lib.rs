@@ -107,6 +107,10 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// action from an event is applied, then the app renders once. If a handler
 /// or `update` fails, the error is logged and the state is left as it was.
 ///
+/// `styles` holds global rules by selector, as `css` from `<web/style>`
+/// takes them, e.g. `styles.body.margin = 0;`. They're adopted by the
+/// container's root while the app is mounted.
+///
 /// The first mount replaces the container's contents. Mounting again, e.g.
 /// with a hot-reloaded `path`, updates the app in place: the DOM is patched
 /// to match the new render, and state carries over, ignoring the new `init`.

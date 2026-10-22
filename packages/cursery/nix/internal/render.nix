@@ -11,10 +11,19 @@
 #
 #     # Returns children, like any element accepts.
 #     render = state: html.p "Hello";
+#
+#     # Rules for selectors, as `css` from `<web/style>` takes them. They go
+#     # in `@layer base`, with Tailwind's preflight, so utilities override
+#     # them.
+#     styles = {
+#       body.margin = 0;
+#       ":root"."--accent" = "tan";
+#     };
 #   }
 
 let
   children = import ./children.nix;
+  css = import ./css.nix;
 
   check =
     app:
@@ -24,6 +33,8 @@ let
       throw "Apps with `init` or `update` must define both"
     else if app ? update && !builtins.isFunction app.update then
       throw "Invalid `update` of type ${builtins.typeOf app.update}: expected a function"
+    else if app ? styles && !builtins.isAttrs app.styles then
+      throw "Invalid `styles` of type ${builtins.typeOf app.styles}: expected an attrset of selectors"
     else if app ? render && !builtins.isFunction app.render then
       throw "Invalid `render` of type ${builtins.typeOf app.render}: expected a function"
     else
@@ -41,7 +52,8 @@ in
 {
   # Renders the app, given what the previous `mount` kept: `null` on the first
   # mount, then `{ state }` from apps with state. Reloads keep that state,
-  # ignoring `init`, as long as the app still has state.
+  # ignoring `init`, as long as the app still has state. `styles` is the CSS
+  # of its global styles, or `null` for none.
   mount =
     kept:
     let
@@ -59,6 +71,8 @@ in
     {
       children = view next;
       kept = next;
+      styles =
+        if checked.styles or { } == { } then null else "@layer base { ${css.global checked.styles} }";
     };
 
   # Calls an event handler, returning what to keep after its action, or

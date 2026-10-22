@@ -8,7 +8,7 @@ use std::{cell::RefCell, rc::Rc};
 use snix_eval::Value;
 use web_sys::Element;
 
-use crate::{error::Error, events::Listeners, session::Session};
+use crate::{error::Error, events::Listeners, session::Session, virtual_dom::styles::Globals};
 
 thread_local! {
     /// wasm is single-threaded, so this is effectively a global.
@@ -31,6 +31,9 @@ pub(crate) struct Mount {
 
     /// Kept across mounts, and removed with the last of them.
     pub(crate) listeners: Rc<Listeners>,
+
+    /// Kept across mounts while they're unchanged.
+    pub(crate) globals: Option<Rc<Globals>>,
 }
 
 /// The app mounted into `container`, if any.

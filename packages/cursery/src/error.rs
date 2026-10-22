@@ -46,6 +46,9 @@ pub(crate) enum Error {
     #[error("Invalid CSS for class {0:?}: {1}")]
     InvalidStyle(String, Box<Error>),
 
+    #[error("Invalid global styles: {0}")]
+    InvalidGlobalStyle(Box<Error>),
+
     #[error("Different styles hash to the same class name {0:?}")]
     StyleCollision(String),
 

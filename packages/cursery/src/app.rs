@@ -10,7 +10,10 @@ use crate::{
     events::{self, Listeners},
     mounts::{self, Mount},
     session::Session,
-    virtual_dom::{self, handlers, styles},
+    virtual_dom::{
+        self, handlers,
+        styles::{self, Globals},
+    },
 };
 
 /// See the `mount` export.
@@ -48,12 +51,25 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
         |mount| Rc::clone(&mount.listeners),
     );
 
+    let styles = field(&result, "styles")?;
+    let globals = if is_null(&styles) {
+        None
+    } else {
+        let css = styles.to_str()?;
+        let css = str::from_utf8(css.as_bytes()).map_err(|_| Error::InvalidUtf8)?;
+        match previous.as_ref().and_then(|mount| mount.globals.clone()) {
+            Some(globals) if globals.css() == css => Some(globals),
+            _ => Some(Rc::new(Globals::new(container, css.to_owned())?)),
+        }
+    };
+
     let mount = Mount {
         session: Rc::new(session),
         renderer,
         tree: field(&result, "children")?,
         kept: field(&result, "kept")?,
         listeners,
+        globals,
     };
 
     commit(container, previous.as_ref(), mount)

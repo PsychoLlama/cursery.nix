@@ -12,9 +12,9 @@
 #   html.div { class = [ card "shadow-md" ]; } "..."
 #
 # Attrsets are blocks: nested selectors and at-rules, written out as native
-# CSS nesting. Anything else is a declaration: a string, a number (as is, no
-# units), `null` to omit it, or a list of those to repeat it in order, e.g. for
-# fallbacks.
+# CSS nesting. Lists of attrsets repeat a block. Anything else is a
+# declaration: a string, a number (as is, no units), `null` to omit it, or a
+# list of those to repeat it in order, e.g. for fallbacks.
 #
 # Nix sorts attributes, so declarations and blocks come out in alphabetical
 # order, declarations first. Shorthands sort before their longhands
@@ -26,35 +26,7 @@
 # utilities override them.
 
 let
-  # Declaration values, in order. `null` omits one.
-  values =
-    property: value:
-    builtins.concatMap (
-      value:
-      if value == null then
-        [ ]
-      else if builtins.isString value then
-        [ value ]
-      else if builtins.isInt value || builtins.isFloat value then
-        [ (builtins.toJSON value) ]
-      else
-        throw "Invalid value for \"${property}\" of type ${builtins.typeOf value}: expected a string, number, null, or a list of those"
-    ) (if builtins.isList value then value else [ value ]);
-
-  # The contents of a block: its declarations, then its nested blocks.
-  block =
-    rules:
-    let
-      names = builtins.attrNames rules;
-      isBlock = name: builtins.isAttrs rules.${name};
-
-      declarations = builtins.concatMap (
-        name: map (value: "${name}: ${value};") (values name rules.${name})
-      ) (builtins.filter (name: !isBlock name) names);
-
-      blocks = map (name: "${name} { ${block rules.${name}} }") (builtins.filter isBlock names);
-    in
-    builtins.concatStringsSep " " (declarations ++ blocks);
+  inherit (import ../../internal/css.nix) block;
 
   css =
     rules:

@@ -5,6 +5,9 @@
 //! Each class is loaded once and never removed. Names are hashes of their
 //! rules, so an edited style is a new class, and the old one is only a rule
 //! nothing matches.
+//!
+//! Global styles can't be left behind like that, so each app has its own
+//! sheet for them (see [`Globals`]), removed with it.
 
 use std::{cell::RefCell, collections::HashMap};
 
@@ -74,23 +77,67 @@ pub(crate) fn load(container: &Element, children: &Value) -> Result<(), Error> {
             }
         }
 
-        let root = container.get_root_node();
-        if Reflect::has(&root, &adopted())? {
-            adopt(&root, &state.sheet)
-        } else {
-            adopt(&state.document, &state.sheet)
-        }
+        adopt(&root(container)?, &state.sheet)
     })
+}
+
+/// An app's global styles, adopted until dropped.
+#[derive(Debug)]
+pub(crate) struct Globals {
+    css: String,
+    sheet: CssStyleSheet,
+    root: web_sys::Node,
+}
+
+impl Globals {
+    /// Adopts `css` by the root of `container`.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the CSS doesn't parse.
+    pub(crate) fn new(container: &Element, css: String) -> Result<Self, Error> {
+        let sheet = CssStyleSheet::new()?;
+        sheet
+            .insert_rule(&css)
+            .map_err(|error| Error::InvalidGlobalStyle(Box::new(error.into())))?;
+
+        let root = root(container)?;
+        adopt(&root, &sheet)?;
+        Ok(Self { css, sheet, root })
+    }
+
+    /// The CSS it was created with.
+    pub(crate) fn css(&self) -> &str {
+        &self.css
+    }
+}
+
+impl Drop for Globals {
+    fn drop(&mut self) {
+        // Only throws if `adoptedStyleSheets` is unsupported, in which case it
+        // was never adopted.
+        drop(unadopt(&self.root, &self.sheet));
+    }
+}
+
+/// Where `container` adopts sheets: its shadow root, or else its document.
+fn root(container: &Element) -> Result<web_sys::Node, Error> {
+    let root = container.get_root_node();
+    if Reflect::has(&root, &adopted())? {
+        return Ok(root);
+    }
+
+    Ok(container
+        .owner_document()
+        .ok_or_else(|| Error::Js("Container has no document".to_owned()))?
+        .into())
 }
 
 /// Adds `sheet` to the `adoptedStyleSheets` of `root`, a document or shadow
 /// root, unless it's there already. Assigned rather than pushed to: older
 /// browsers froze the array.
 fn adopt(root: &web_sys::Node, sheet: &CssStyleSheet) -> Result<(), Error> {
-    let sheets: Array = Reflect::get(root, &adopted())?
-        .dyn_into()
-        .map_err(|_| Error::Js("adoptedStyleSheets isn't supported".to_owned()))?;
-
+    let sheets = adopted_by(root)?;
     if !sheets.includes(sheet, 0) {
         let sheets = sheets.slice(0, sheets.length());
         sheets.push(sheet);
@@ -98,6 +145,26 @@ fn adopt(root: &web_sys::Node, sheet: &CssStyleSheet) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Removes `sheet` from the `adoptedStyleSheets` of `root`.
+fn unadopt(root: &web_sys::Node, sheet: &CssStyleSheet) -> Result<(), Error> {
+    let sheets = adopted_by(root)?;
+    if sheets.includes(sheet, 0) {
+        let sheets: Array = sheets
+            .iter()
+            .filter(|adopted| adopted != AsRef::<JsValue>::as_ref(sheet))
+            .collect();
+        Reflect::set(root, &adopted(), &sheets)?;
+    }
+
+    Ok(())
+}
+
+fn adopted_by(root: &web_sys::Node) -> Result<Array, Error> {
+    Reflect::get(root, &adopted())?
+        .dyn_into()
+        .map_err(|_| Error::Js("adoptedStyleSheets isn't supported".to_owned()))
 }
 
 fn adopted() -> JsValue {
