@@ -1,6 +1,8 @@
 //! WASM bindings for evaluating Nix.
 
+mod app;
 mod error;
+mod events;
 mod memfs;
 mod mounts;
 mod session;
@@ -15,11 +17,11 @@ use std::{
 };
 
 use js_sys::{Array, Object};
-use snix_eval::{EvalMode, NixAttrs, Value};
+use snix_eval::EvalMode;
 use wasm_bindgen::prelude::*;
 use web_sys::Element;
 
-use crate::{error::Error, memfs::Files, mounts::Mount, session::Session, to_js::to_js};
+use crate::{error::Error, memfs::Files, session::Session, to_js::to_js};
 
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
@@ -101,6 +103,10 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// }
 /// ```
 ///
+/// Handlers in `on` (see `<web/dom>`) return actions for `update`. Every
+/// action from an event is applied, then the app renders once. If a handler
+/// or `update` fails, the error is logged and the state is left as it was.
+///
 /// The first mount replaces the container's contents. Mounting again, e.g.
 /// with a hot-reloaded `path`, updates the app in place: the DOM is patched
 /// to match the new render, and state carries over, ignoring the new `init`.
@@ -111,47 +117,7 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// tree. The container and state are left untouched.
 #[wasm_bindgen]
 pub fn mount(container: &Element, path: &str) -> Result<(), JsError> {
-    let session = Session::new();
-    let previous = mounts::get(container);
-
-    // The app is evaluated once, leaving a renderer to call.
-    let renderer = session.evaluate(
-        "import renderer (import app)",
-        &[
-            (
-                "renderer",
-                nix_path(session.bundled_path().join("internal/render.nix")),
-            ),
-            ("app", nix_path(PathBuf::from(path))),
-        ],
-        EvalMode::Lazy,
-    )?;
-
-    let kept = previous
-        .as_ref()
-        .map_or(Value::Null, |mount| mount.kept.clone());
-    let result = session
-        .evaluate(
-            "renderer.mount kept",
-            &[("renderer", renderer), ("kept", kept)],
-            EvalMode::Strict,
-        )?
-        .to_attrs()
-        .map_err(|error| Error::InvalidRenderer(error.to_string()))?;
-
-    let mount = Mount {
-        tree: field(&result, "children")?,
-        kept: field(&result, "kept")?,
-    };
-
-    virtual_dom::render(
-        container,
-        previous.as_ref().map(|mount| &mount.tree),
-        &mount.tree,
-    )?;
-
-    mounts::insert(container, mount);
-    Ok(())
+    Ok(app::mount(container, path)?)
 }
 
 /// Remove the app mounted into `container`, clearing its contents.
@@ -164,18 +130,6 @@ pub fn unmount(container: &Element) -> Result<(), JsError> {
     mounts::remove(container)?;
     container.replace_children_with_node_0();
     Ok(())
-}
-
-/// Selects `name` from what the renderer returned.
-fn field(attrs: &NixAttrs, name: &'static str) -> Result<Value, Error> {
-    attrs
-        .select(name)
-        .cloned()
-        .ok_or_else(|| Error::InvalidRenderer(format!("missing {name:?}")))
-}
-
-fn nix_path(path: PathBuf) -> Value {
-    Value::Path(Box::new(path))
 }
 
 fn read_files(files: &NixFiles) -> Result<Files, Error> {

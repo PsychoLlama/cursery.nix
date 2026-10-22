@@ -3,12 +3,12 @@
 //! Mounting into an occupied container updates the app in place, e.g. after
 //! a hot reload, patching the DOM rather than replacing it and keeping state.
 
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use snix_eval::Value;
 use web_sys::Element;
 
-use crate::error::Error;
+use crate::{error::Error, events::Listeners, session::Session};
 
 thread_local! {
     /// wasm is single-threaded, so this is effectively a global.
@@ -17,11 +17,20 @@ thread_local! {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Mount {
+    /// Evaluates calls to the renderer: values only work in their session.
+    pub(crate) session: Rc<Session>,
+
+    /// What `internal/render.nix` returned for the app.
+    pub(crate) renderer: Value,
+
     /// The children last rendered into the container.
     pub(crate) tree: Value,
 
     /// What the renderer kept for the next mount, e.g. state.
     pub(crate) kept: Value,
+
+    /// Kept across mounts, and removed with the last of them.
+    pub(crate) listeners: Rc<Listeners>,
 }
 
 /// The app mounted into `container`, if any.

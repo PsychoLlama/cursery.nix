@@ -35,6 +35,7 @@ app:
 let
   checked = check app;
   render = checked.render or (_: null);
+  view = kept: children.normalize (render (if kept == null then { } else kept.state));
 in
 
 {
@@ -52,9 +53,28 @@ in
           kept.state
         else
           checked.init;
+
+      next = if stateful then { inherit state; } else null;
     in
     {
-      children = children.normalize (render state);
-      kept = if stateful then { inherit state; } else null;
+      children = view next;
+      kept = next;
     };
+
+  # Calls an event handler, returning what to keep after its action, or
+  # `null` if it ignored the event.
+  handle =
+    kept: handler: event:
+    let
+      action = handler event;
+    in
+    if action == null then
+      null
+    else if kept == null then
+      throw "Received an action without an `update` to handle it"
+    else
+      { state = checked.update kept.state action; };
+
+  # Renders children from what `mount` or `handle` kept.
+  inherit view;
 }

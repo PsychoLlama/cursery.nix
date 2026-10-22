@@ -35,6 +35,28 @@ impl Element {
     pub(super) fn children(&self) -> Result<NixList, Error> {
         Ok(field(&self.0, "children")?.to_list()?)
     }
+
+    pub(super) fn handlers(&self) -> Result<Handlers, Error> {
+        Ok(Handlers(field(&self.0, "on")?.to_attrs()?))
+    }
+}
+
+/// Handlers are functions, or null for none.
+pub(super) struct Handlers(NixAttrs);
+
+impl Handlers {
+    /// Every event type, including those without a handler.
+    pub(super) fn types(&self) -> impl Iterator<Item = &NixString> {
+        self.0.keys()
+    }
+
+    /// The handler for events of type `name`, if any.
+    pub(super) fn get(&self, name: &str) -> Option<Value> {
+        self.0
+            .select(name)
+            .map(forced)
+            .filter(|handler| !matches!(handler, Value::Null))
+    }
 }
 
 /// Attribute values are strings, or null to omit them.

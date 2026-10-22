@@ -10,6 +10,11 @@
 # Elements are functors: applying one to attrs merges them in, and applying it
 # to children appends them. Both are optional and can repeat.
 #
+# Handlers in `on` take a snapshot of the event and return an action for the
+# app's `update`, or `null` to ignore the event:
+#
+#   html.button { on.click = event: { type = "increment"; }; } "+"
+#
 # Builders normalize children as they go (see `internal/children.nix`).
 
 let
@@ -35,15 +40,40 @@ let
     else
       throw "Invalid attribute \"${name}\" of type ${builtins.typeOf value}: expected a string, number, boolean, or null";
 
+  # Event handlers take an event and return an action for `update`, or `null`
+  # to ignore it. A `null` handler overrides an earlier one, like attributes.
+  handler =
+    name: value:
+    if builtins.isFunction value || value == null then
+      value
+    else
+      throw "Invalid handler \"on.${name}\" of type ${builtins.typeOf value}: expected a function or null";
+
+  handlers =
+    on:
+    if builtins.isAttrs on then
+      builtins.mapAttrs handler on
+    else
+      throw "Invalid `on` of type ${builtins.typeOf on}: expected an attrset of handlers";
+
   # Applies attrs or children to an element, returning a new element. `key` is
-  # lifted out of attrs to identify the node among its siblings when diffing.
+  # lifted out of attrs to identify the node among its siblings when diffing,
+  # and `on` to hold event handlers.
   apply =
     self: arg:
     if isAttrs arg then
       self
       // {
         key = arg.key or self.key;
-        attrs = self.attrs // builtins.mapAttrs attribute (builtins.removeAttrs arg [ "key" ]);
+        on = self.on // handlers (arg.on or { });
+        attrs =
+          self.attrs
+          // builtins.mapAttrs attribute (
+            builtins.removeAttrs arg [
+              "key"
+              "on"
+            ]
+          );
       }
     else
       self // { children = self.children ++ normalize arg; };
@@ -53,6 +83,7 @@ let
     _type = "element";
     inherit tag;
     key = null;
+    on = { };
     attrs = { };
     children = [ ];
     __functor = apply;

@@ -1,10 +1,11 @@
 # Normalizes children (like React's `ReactNode`) into a list of nodes, the
 # shapes the renderer understands:
 #
-#   { _type = "element"; tag; key; attrs; children; }
+#   { _type = "element"; tag; key; on; attrs; children; }
 #   { _type = "text"; text; }
 #
-# Attribute values are strings, or `null` to omit them.
+# Attribute values are strings, or `null` to omit them. Handlers in `on` are
+# functions, or `null` for none.
 #
 # - Lists are flattened, however deeply nested.
 # - `null` and booleans render nothing, for conditional rendering.
