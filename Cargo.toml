@@ -3,6 +3,7 @@ resolver = "3"
 members = ["packages/cursery"]
 
 [workspace.package]
+# Never published to crates.io: the npm package carries release versions.
 version = "0.1.0"
 edition = "2024"
 authors = ["Jesse Gibson <JesseTheGibson@gmail.com>"]

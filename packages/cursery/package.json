@@ -1,7 +1,7 @@
 {
   "name": "cursery",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Nix evaluator compiled to WASM",
   "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
   "license": "GPL-3.0-only",
@@ -11,6 +11,10 @@
     "directory": "packages/cursery"
   },
   "type": "module",
+  "files": [
+    "dist",
+    "vite-plugin/client.d.ts"
+  ],
   "exports": {
     ".": {
       "node": {
