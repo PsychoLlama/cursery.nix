@@ -10,6 +10,10 @@
 # Elements are functors: applying one to attrs merges them in, and applying it
 # to children appends them. Both are optional and can repeat.
 #
+# `class` takes strings, styles from `<web/style>`, `null`, or lists of those:
+#
+#   html.div { class = [ card "p-4" (if active then "ring" else null) ]; }
+#
 # Handlers in `on` take a snapshot of the event and return an action for the
 # app's `update`, or `null` to ignore the event:
 #
@@ -56,6 +60,38 @@ let
     else
       throw "Invalid `on` of type ${builtins.typeOf on}: expected an attrset of handlers";
 
+  isStyle = value: builtins.isAttrs value && value._type or null == "style";
+
+  # Flattens a `class` into strings and styles.
+  classes =
+    value:
+    if builtins.isList value then
+      builtins.concatMap classes value
+    else if value == null then
+      [ ]
+    else if builtins.isString value || isStyle value then
+      [ value ]
+    else
+      throw "Invalid class of type ${builtins.typeOf value}: expected a string, style, null, or a list of those";
+
+  # The `class` attribute, or `null` to omit it if there are no classes.
+  className =
+    list:
+    if list == [ ] then
+      null
+    else
+      builtins.concatStringsSep " " (map (class: if isStyle class then class.name else class) list);
+
+  # CSS for the renderer to load, by class name.
+  styles =
+    list:
+    builtins.listToAttrs (
+      map (style: {
+        inherit (style) name;
+        value = style.css;
+      }) (builtins.filter isStyle list)
+    );
+
   # Keys identify an element among its siblings, so it's patched rather than
   # recreated when siblings come and go or reorder. Integers become strings,
   # so `1` and `"1"` are the same key.
@@ -70,22 +106,28 @@ let
 
   # Applies attrs or children to an element, returning a new element. `key` is
   # lifted out of attrs to identify the node among its siblings when diffing,
-  # and `on` to hold event handlers.
+  # `on` to hold event handlers, and the CSS of styles in `class`.
   apply =
     self: arg:
     if isAttrs arg then
+      let
+        list = classes arg.class;
+      in
       self
       // {
         key = if arg ? key then key arg.key else self.key;
         on = self.on // handlers (arg.on or { });
+        styles = if arg ? class then styles list else self.styles;
         attrs =
           self.attrs
           // builtins.mapAttrs attribute (
             builtins.removeAttrs arg [
               "key"
               "on"
+              "class"
             ]
-          );
+          )
+          // (if arg ? class then { class = className list; } else { });
       }
     else
       self // { children = self.children ++ normalize arg; };
@@ -96,6 +138,7 @@ let
     inherit tag;
     key = null;
     on = { };
+    styles = { };
     attrs = { };
     children = [ ];
     __functor = apply;

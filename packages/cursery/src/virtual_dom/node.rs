@@ -61,6 +61,15 @@ impl Element {
     pub(super) fn handlers(&self) -> Result<Handlers, Error> {
         Ok(Handlers(field(&self.0, "on")?.to_attrs()?))
     }
+
+    /// The CSS of styles in its `class`, by class name.
+    pub(super) fn styles(&self) -> Result<Vec<(NixString, NixString)>, Error> {
+        field(&self.0, "styles")?
+            .to_attrs()?
+            .iter()
+            .map(|(name, css)| Ok((name.clone(), string(&forced(css))?)))
+            .collect()
+    }
 }
 
 /// Reads a list of children, checking that their keys are unique.

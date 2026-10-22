@@ -5,6 +5,7 @@
 //! - `create`: builds DOM nodes for a tree.
 //! - `patch`: updates DOM nodes from one tree to the next.
 //! - `handlers`: finds event handlers for events in the DOM.
+//! - `styles`: loads the CSS of styles in a tree.
 //!
 //! Either way, an invalid tree fails before the DOM changes.
 
@@ -12,6 +13,7 @@ mod create;
 pub(crate) mod handlers;
 mod node;
 mod patch;
+pub(crate) mod styles;
 
 use snix_eval::Value;
 use web_sys::Element;

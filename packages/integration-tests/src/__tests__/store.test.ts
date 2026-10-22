@@ -22,7 +22,10 @@ describe("store", () => {
   it("lets loaded files use bundled libraries", () => {
     using app = load({ "main.nix": nix`builtins.attrNames (import <web>)` });
 
-    expect(cursery.evaluate(nix`import ${app.path}/main.nix`)).toEqual(["dom"]);
+    expect(cursery.evaluate(nix`import ${app.path}/main.nix`)).toEqual([
+      "dom",
+      "style",
+    ]);
   });
 
   it("matches the store paths Nix computes", () => {

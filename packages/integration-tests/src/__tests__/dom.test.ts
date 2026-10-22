@@ -84,6 +84,24 @@ describe("dom", () => {
     ).toBe("<input>");
   });
 
+  it("joins lists of classes", () => {
+    expect(
+      render(
+        nix`html.p { class = [ "a" [ "b" null ] (if false then "c" else null) ]; }`,
+      ),
+    ).toBe('<p class="a b"></p>');
+  });
+
+  it("omits empty lists of classes", () => {
+    expect(render(nix`html.p { class = [ null ]; }`)).toBe("<p></p>");
+  });
+
+  it("rejects invalid classes", () => {
+    expect(() => render(nix`html.p { class = [ 1 ]; }`)).toThrow(
+      /Invalid class of type int/,
+    );
+  });
+
   it("rejects invalid keys", () => {
     expect(() => render(nix`html.li { key = 1.5; }`)).toThrow(
       /Invalid key of type float/,

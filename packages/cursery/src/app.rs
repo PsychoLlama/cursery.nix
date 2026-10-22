@@ -10,7 +10,7 @@ use crate::{
     events::{self, Listeners},
     mounts::{self, Mount},
     session::Session,
-    virtual_dom::{self, handlers},
+    virtual_dom::{self, handlers, styles},
 };
 
 /// See the `mount` export.
@@ -114,6 +114,7 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
 /// Renders `mount` into `container`, patching from `previous`, and records it.
 fn commit(container: &Element, previous: Option<&Mount>, mount: Mount) -> Result<(), Error> {
     mount.listeners.listen(handlers::types(&mount.tree)?)?;
+    styles::load(container, &mount.tree)?;
     virtual_dom::render(container, previous.map(|mount| &mount.tree), &mount.tree)?;
 
     mounts::insert(container, mount);

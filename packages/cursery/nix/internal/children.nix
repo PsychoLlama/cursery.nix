@@ -1,11 +1,12 @@
 # Normalizes children (like React's `ReactNode`) into a list of nodes, the
 # shapes the renderer understands:
 #
-#   { _type = "element"; tag; key; on; attrs; children; }
+#   { _type = "element"; tag; key; on; styles; attrs; children; }
 #   { _type = "text"; text; }
 #
 # Attribute values are strings, or `null` to omit them. Handlers in `on` are
-# functions, or `null` for none.
+# functions, or `null` for none. `styles` maps class names to the CSS that
+# defines them.
 #
 # - Lists are flattened, however deeply nested.
 # - `null` and booleans render nothing, for conditional rendering.
@@ -38,6 +39,8 @@ let
       [ (text (builtins.toJSON children)) ]
     else if isNode children then
       [ children ]
+    else if children._type or null == "style" then
+      throw "Invalid child: styles go in `class`"
     else
       throw "Invalid child of type ${builtins.typeOf children}: expected an element, string, number, null, boolean, or a list of those";
 in
