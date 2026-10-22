@@ -49,6 +49,20 @@ app:
 let
   checked = check app;
   render = checked.render or (_: null);
+
+  isEffect = value: builtins.isAttrs value && value.type or null == "derivation";
+
+  # Flattens what a handler returned into a list of effects.
+  effects =
+    value:
+    if builtins.isList value then
+      builtins.concatMap effects value
+    else if value == null then
+      [ ]
+    else if isEffect value then
+      [ value ]
+    else
+      throw "Invalid handler result of type ${builtins.typeOf value}: expected an effect, like `io.dispatch`, null, or a list of those";
   view = kept: children.normalize (render (if kept == null then { } else kept.state));
 in
 
@@ -79,19 +93,12 @@ in
     };
 
   # Calls an event handler. It returns an effect to run, like `io.dispatch`,
-  # or `null` to ignore the event. A failed effect throws.
-  handle =
-    handler: snapshot:
-    let
-      effect = handler (event snapshot);
-      result = import effect;
-    in
-    if effect == null then
-      null
-    else if !(builtins.isAttrs effect && effect.type or null == "derivation") then
-      throw "Invalid handler result of type ${builtins.typeOf effect}: expected an effect, like `io.dispatch`, or null"
-    else
-      builtins.seq result null;
+  # `null` to ignore the event, or a list of those to run in order. Returns
+  # the output paths of the effects, for the renderer to `run` each.
+  handle = handler: snapshot: map (effect: effect.outPath) (effects (handler (event snapshot)));
+
+  # Runs an effect, given its output path. A failed effect throws.
+  run = path: builtins.seq (import path) null;
 
   # Applies an action to what `mount` or `update` kept, for
   # `builtin:dispatch`.

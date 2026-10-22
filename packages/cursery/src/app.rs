@@ -80,9 +80,9 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
 }
 
 /// Handles `event` for the app mounted into `container`, calling each
-/// handler in turn. Effects they return run as the renderer imports them,
-/// and `builtin:dispatch` renders as it goes: if a handler fails, earlier
-/// dispatches stay rendered.
+/// handler in turn and running the effects it returns, in order.
+/// `builtin:dispatch` renders as it goes: if an effect fails, earlier ones
+/// stay rendered and later ones don't run.
 pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> {
     let Some(mount) = mounts::get(container) else {
         return Ok(());
@@ -97,7 +97,7 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
     let dispatch = mount.session.dispatching().start(container, event);
     let event = events::snapshot(event, &dispatch)?;
     for handler in handlers {
-        mount.session.evaluate(
+        let effects = mount.session.evaluate(
             "renderer.handle handler event",
             &[
                 ("renderer", mount.renderer.clone()),
@@ -106,6 +106,19 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
             ],
             EvalMode::Strict,
         )?;
+
+        // Each in its own evaluation, so one doesn't force another, and the
+        // same effect twice runs twice rather than hitting the import cache.
+        for effect in &effects.to_list()? {
+            mount.session.evaluate(
+                "renderer.run effect",
+                &[
+                    ("renderer", mount.renderer.clone()),
+                    ("effect", effect.clone()),
+                ],
+                EvalMode::Strict,
+            )?;
+        }
     }
 
     Ok(())

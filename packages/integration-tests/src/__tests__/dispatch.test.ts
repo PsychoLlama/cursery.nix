@@ -161,6 +161,61 @@ describe("dispatch", () => {
       expect(shown(view)).toBe(2);
     });
 
+    it("runs lists of effects in order", () => {
+      using view = render(nix`{
+        init = [ ];
+        update = state: action: state ++ [ action.type ];
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button {
+            on.click = event: [
+              (dispatch "a")
+              null
+              [ (dispatch "b") [ (dispatch "c") ] ]
+            ];
+          })
+        ];
+      }`);
+
+      view.get("button").click();
+
+      expect(shown(view)).toEqual(["a", "b", "c"]);
+    });
+
+    it("runs each effect in a list, even if they're the same", () => {
+      using view = render(nix`{
+        init = 0;
+        update = state: action: state + 1;
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button {
+            on.click = event: let increment = dispatch "increment"; in [ increment increment ];
+          })
+        ];
+      }`);
+
+      view.get("button").click();
+
+      expect(shown(view)).toBe(2);
+    });
+
+    it("stops running a list at the first failed effect", () => {
+      using view = render(nix`{
+        init = [ ];
+        update = state: action:
+          if action.type == "b" then throw "failed" else state ++ [ action.type ];
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button {
+            on.click = event: [ (dispatch "a") (dispatch "b") (dispatch "c") ];
+          })
+        ];
+      }`);
+
+      expect(errors(view)).toEqual([expect.stringMatching(/failed/)]);
+      expect(shown(view)).toEqual(["a"]);
+    });
+
     it("keeps earlier dispatches when a handler fails", () => {
       using view = render(nix`{
         init = 0;
@@ -213,6 +268,23 @@ describe("dispatch", () => {
           /Invalid handler result of type string: expected an effect/,
         ),
       ]);
+    });
+
+    it("rejects lists with results that aren't effects", () => {
+      using view = render(nix`{
+        init = 0;
+        update = state: action: state + 1;
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button { on.click = event: [ (dispatch "increment") 1 ]; })
+        ];
+      }`);
+
+      expect(errors(view)).toEqual([
+        expect.stringMatching(/Invalid handler result of type int/),
+      ]);
+      // Checked before running any.
+      expect(shown(view)).toBe(0);
     });
 
     it("throws errors of returned effects", () => {
