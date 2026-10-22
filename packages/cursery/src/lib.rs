@@ -2,6 +2,7 @@
 
 mod error;
 mod memfs;
+mod session;
 mod store;
 mod store_path;
 mod to_js;
@@ -13,13 +14,17 @@ use std::{
 };
 
 use js_sys::{Array, Object};
-use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
-use snix_eval::{EvalIO, EvalMode, Evaluation, Value};
+use snix_eval::{EvalMode, Value};
 use wasm_bindgen::prelude::*;
 use web_sys::Element;
 
-use crate::{error::Error, memfs::Files, to_js::to_js};
+use crate::{
+    error::Error,
+    memfs::Files,
+    session::{Session, Variables},
+    to_js::to_js,
+};
 
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
@@ -77,7 +82,11 @@ pub fn unload(path: &str) -> Result<(), JsError> {
 /// contains something JS can't represent (functions, integers beyond 2^53).
 #[wasm_bindgen(unchecked_return_type = "unknown")]
 pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
-    Ok(to_js(&evaluate_strictly(code, None)?)?)
+    Ok(to_js(&Session::new().evaluate(
+        code,
+        None,
+        EvalMode::Strict,
+    )?)?)
 }
 
 /// Render an app into `container`, replacing its contents. `path` is its
@@ -100,15 +109,27 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// container is left untouched.
 #[wasm_bindgen]
 pub fn mount(container: &Element, path: &str) -> Result<(), JsError> {
-    let variables = FxHashMap::from_iter([
-        (
-            SmolStr::new_static("renderer"),
-            nix_path(store::bundled_path().join("internal/render.nix")),
-        ),
-        (SmolStr::new_static("app"), nix_path(PathBuf::from(path))),
-    ]);
+    let session = Session::new();
 
-    let children = evaluate_strictly("import renderer (import app)", Some(&variables))?;
+    // The app is evaluated once, leaving a view of it to call with state.
+    let view = session.evaluate(
+        "import renderer (import app)",
+        Some(&Variables::from_iter([
+            (
+                SmolStr::new_static("renderer"),
+                nix_path(session.bundled_path().join("internal/render.nix")),
+            ),
+            (SmolStr::new_static("app"), nix_path(PathBuf::from(path))),
+        ])),
+        EvalMode::Lazy,
+    )?;
+
+    let children = session.evaluate(
+        "view { }",
+        Some(&Variables::from_iter([(SmolStr::new_static("view"), view)])),
+        EvalMode::Strict,
+    )?;
+
     let document = container
         .owner_document()
         .ok_or_else(|| Error::Js("Container has no document".to_owned()))?;
@@ -157,36 +178,6 @@ fn normalize_path(path: &str) -> Result<PathBuf, Error> {
     Ok(normalized)
 }
 
-/// Strictly evaluate `code`, with `variables` in scope.
-fn evaluate_strictly(
-    code: &str,
-    variables: Option<&FxHashMap<SmolStr, Value>>,
-) -> Result<Value, Error> {
-    // A snapshot: changes to the store don't affect evaluations in progress.
-    let (filesystem, bundled_path) = store::snapshot();
-    let filesystem: Box<dyn EvalIO> = Box::new(filesystem);
-    let result = Evaluation::builder_pure()
-        .io_handle(filesystem)
-        .enable_import()
-        // Only `public/` is exposed, keeping internal modules out of `<web/...>`.
-        .nix_path(Some(format!(
-            "web={}",
-            bundled_path.join("public").display()
-        )))
-        .env(variables)
-        .mode(EvalMode::Strict)
-        .build()
-        // Without a location, snix falls back to `current_dir()`, which is
-        // unsupported on wasm. There is no filesystem, so any root will do.
-        .evaluate(code, Some(PathBuf::from("/tmp")));
-
-    if let Some(error) = result.errors.into_iter().next() {
-        return Err(Error::Eval(error));
-    }
-
-    result.value.ok_or(Error::NoValue)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,7 +185,9 @@ mod tests {
     #[test]
     fn imports_bundled_libraries() -> Result<(), Error> {
         assert_eq!(
-            evaluate_strictly("builtins.attrNames (import <web>)", None)?.to_string(),
+            Session::new()
+                .evaluate("builtins.attrNames (import <web>)", None, EvalMode::Strict)?
+                .to_string(),
             r#"[ "dom" ]"#
         );
         Ok(())
