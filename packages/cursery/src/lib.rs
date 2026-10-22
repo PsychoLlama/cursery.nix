@@ -2,6 +2,7 @@
 
 mod error;
 mod memfs;
+mod mounts;
 mod session;
 mod store;
 mod store_path;
@@ -89,9 +90,8 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
     )?)?)
 }
 
-/// Render an app into `container`, replacing its contents. `path` is its
-/// `default.nix`, or a directory containing one, e.g. `${path}/app` for a
-/// path returned by `load`.
+/// Render an app into `container`. `path` is its `default.nix`, or a
+/// directory containing one, e.g. `${path}/app` for a path returned by `load`.
 ///
 /// Apps are attrsets of optional hooks. `render` takes the state (for now,
 /// always `{ }`) and returns children, like any element accepts:
@@ -102,6 +102,10 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 ///   render = state: html.h1 "Hello";
 /// }
 /// ```
+///
+/// The first mount replaces the container's contents. Mounting again, e.g.
+/// with a hot-reloaded `path`, updates the app in place: the DOM is patched
+/// to match the new render.
 ///
 /// # Errors
 ///
@@ -130,12 +134,20 @@ pub fn mount(container: &Element, path: &str) -> Result<(), JsError> {
         EvalMode::Strict,
     )?;
 
-    let document = container
-        .owner_document()
-        .ok_or_else(|| Error::Js("Container has no document".to_owned()))?;
+    virtual_dom::render(container, mounts::tree(container).as_ref(), &children)?;
+    mounts::insert(container, children);
+    Ok(())
+}
 
-    let nodes = virtual_dom::create_children(&children, &document)?;
-    container.replace_children_with_node(&nodes);
+/// Remove the app mounted into `container`, clearing its contents.
+///
+/// # Errors
+///
+/// Throws if nothing is mounted there.
+#[wasm_bindgen]
+pub fn unmount(container: &Element) -> Result<(), JsError> {
+    mounts::remove(container)?;
+    container.replace_children_with_node_0();
     Ok(())
 }
 

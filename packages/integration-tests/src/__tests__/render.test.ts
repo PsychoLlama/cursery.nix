@@ -2,20 +2,33 @@ import * as nix from "cursery";
 
 describe("mount", () => {
   const loaded: string[] = [];
+  const mounted: Element[] = [];
 
   afterEach(() => {
     loaded.splice(0).forEach((path) => nix.unload(path));
+    mounted.splice(0).forEach((container) => nix.unmount(container));
   });
 
-  /** Mounts an app with the given `default.nix` into a new container. */
-  function mount(app: string): HTMLElement {
+  /** Loads an app with the given `default.nix`, returning its path. */
+  function load(app: string): string {
     const path = nix.load({
       "default.nix": `let inherit (import <web/dom>) element html; in ${app}`,
     });
 
     loaded.push(path);
-    const container = document.createElement("div");
+    return path;
+  }
+
+  /** Mounts `path` into `container`, unmounting it after the test. */
+  function mountInto(container: Element, path: string) {
     nix.mount(container, path);
+    if (!mounted.includes(container)) mounted.push(container);
+  }
+
+  /** Mounts an app with the given `default.nix` into a new container. */
+  function mount(app: string): HTMLElement {
+    const container = document.createElement("div");
+    mountInto(container, load(app));
 
     return container;
   }
@@ -70,7 +83,7 @@ describe("mount", () => {
 
     loaded.push(path);
     const container = document.createElement("div");
-    nix.mount(container, `${path}/app`);
+    mountInto(container, `${path}/app`);
 
     expect(container.textContent).toBe("from view");
   });
@@ -81,7 +94,7 @@ describe("mount", () => {
     const path = nix.load({ "default.nix": `{ render = state: "new"; }` });
     loaded.push(path);
 
-    nix.mount(container, path);
+    mountInto(container, path);
 
     expect(container.innerHTML).toBe("new");
   });
@@ -117,5 +130,140 @@ describe("mount", () => {
     const container = document.createElement("div");
 
     expect(() => nix.mount(container, "/nix/store/missing")).toThrow();
+  });
+
+  describe("again", () => {
+    /** Mounts `before`, then `after` into the same container. */
+    function remount(before: string, after: string): HTMLElement {
+      const container = mount(before);
+      mountInto(container, load(after));
+
+      return container;
+    }
+
+    it("keeps unchanged nodes", () => {
+      const container = mount(`{
+        render = state: html.ul [ (html.li "a") (html.li "b") ];
+      }`);
+      const [a, b] = container.querySelectorAll("li");
+
+      mountInto(
+        container,
+        load(`{ render = state: html.ul [ (html.li "a") (html.li "c") ]; }`),
+      );
+
+      const [newA, newB] = container.querySelectorAll("li");
+      expect(container.innerHTML).toBe("<ul><li>a</li><li>c</li></ul>");
+      expect(newA).toBe(a);
+      expect(newB).toBe(b);
+    });
+
+    it("updates attributes", () => {
+      const container = mount(`{
+        render = state: html.p { id = "a"; class = "b"; title = "c"; } [ ];
+      }`);
+      const p = container.firstChild;
+
+      mountInto(
+        container,
+        load(
+          `{ render = state: html.p { id = "x"; title = null; lang = "en"; } [ ]; }`,
+        ),
+      );
+
+      expect(container.firstChild).toBe(p);
+      expect(container.innerHTML).toBe('<p id="x" lang="en"></p>');
+    });
+
+    it("adds and removes children", () => {
+      expect(
+        remount(
+          `{ render = state: [ "a" ]; }`,
+          `{ render = state: [ "a" "b" (html.hr) ]; }`,
+        ).innerHTML,
+      ).toBe("ab<hr>");
+      expect(
+        remount(
+          `{ render = state: [ "a" "b" (html.hr) ]; }`,
+          `{ render = state: [ "a" ]; }`,
+        ).innerHTML,
+      ).toBe("a");
+    });
+
+    it("replaces nodes that change type", () => {
+      const container = remount(
+        `{ render = state: [ (html.p "a") "b" (html.i "c") ]; }`,
+        `{ render = state: [ (html.div "a") (html.b "b") "c" ]; }`,
+      );
+
+      expect(container.innerHTML).toBe("<div>a</div><b>b</b>c");
+    });
+
+    it("leaves the container untouched on errors", () => {
+      const container = mount(`{
+        render = state: [ (html.p "a") (html.p "b") ];
+      }`);
+
+      const before = container.innerHTML;
+      const invalidAttribute = load(`{
+        render = state: [ (html.p "changed") (html.p { "a b" = "c"; } "b") ];
+      }`);
+      const invalidTag = load(`{
+        render = state: [ (html.p "changed") (element "a b") ];
+      }`);
+
+      expect(() => nix.mount(container, invalidAttribute)).toThrow(
+        /InvalidCharacterError/,
+      );
+      expect(() => nix.mount(container, invalidTag)).toThrow(
+        /InvalidCharacterError/,
+      );
+      expect(container.innerHTML).toBe(before);
+    });
+
+    it("patches from the last successful render", () => {
+      const container = mount(`{ render = state: "a"; }`);
+
+      expect(() =>
+        nix.mount(container, load(`{ render = state: throw "boom"; }`)),
+      ).toThrow(/boom/);
+      mountInto(container, load(`{ render = state: "b"; }`));
+
+      expect(container.innerHTML).toBe("b");
+    });
+  });
+});
+
+describe("unmount", () => {
+  it("clears the container", () => {
+    const path = nix.load({ "default.nix": `{ render = state: "hello"; }` });
+    const container = document.createElement("div");
+    nix.mount(container, path);
+
+    nix.unmount(container);
+    nix.unload(path);
+
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("forgets the previous render", () => {
+    const path = nix.load({ "default.nix": `{ render = state: "new"; }` });
+    const container = document.createElement("div");
+    nix.mount(container, path);
+    nix.unmount(container);
+
+    container.innerHTML = "<p>unmanaged</p>";
+    nix.mount(container, path);
+    const html = container.innerHTML;
+    nix.unmount(container);
+    nix.unload(path);
+
+    expect(html).toBe("new");
+  });
+
+  it("throws if nothing is mounted", () => {
+    expect(() => nix.unmount(document.createElement("div"))).toThrow(
+      /Nothing is mounted/,
+    );
   });
 });

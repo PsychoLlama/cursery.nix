@@ -22,6 +22,9 @@ pub(crate) enum Error {
     #[error("Not loaded: {0:?}")]
     NotLoaded(PathBuf),
 
+    #[error("Nothing is mounted in the container")]
+    NotMounted,
+
     #[error("Cannot convert a {0} to JS")]
     Unconvertible(&'static str),
 

@@ -10,8 +10,10 @@ function render(code: string): string {
 
   const container = document.createElement("div");
   nix.mount(container, app.path);
+  const html = container.innerHTML;
+  nix.unmount(container);
 
-  return container.innerHTML;
+  return html;
 }
 
 /** Loads `files`, unloading them once disposed. */
