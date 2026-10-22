@@ -118,7 +118,7 @@ impl Dispatching {
     pub(crate) fn builders(self: &Rc<Self>) -> impl Iterator<Item = (String, Builder)> {
         BUILTINS.into_iter().map(|(name, run)| {
             let dispatching = Rc::clone(self);
-            let builder: Builder = Rc::new(move |inputs| {
+            let builder: Builder = Rc::new(move |inputs, _passthru| {
                 run(&dispatching.find(name, inputs)?);
                 Ok(Value::Null)
             });

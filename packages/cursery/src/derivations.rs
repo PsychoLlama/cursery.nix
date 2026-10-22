@@ -18,6 +18,10 @@
 //! They see the derivation's attributes as inputs, coerced to strings as by
 //! Nix, e.g. which event to act on.
 //!
+//! `passthru` is the exception: it isn't coerced or hashed, and builders get
+//! it as a Nix value, e.g. an action's payload. Derivations that differ only
+//! in `passthru` share an output path.
+//!
 //! Inputs are hashed into the output path. Importing the same output twice in
 //! one evaluation runs it once, because snix caches imports by path.
 
@@ -43,14 +47,24 @@ pub(crate) use global_builtins::builtins as global_builtins;
 /// A derivation's attributes, coerced to strings.
 pub(crate) type Inputs = BTreeMap<String, String>;
 
-/// Runs an effect, given its derivation's inputs.
-pub(crate) type Builder = Rc<dyn Fn(&Inputs) -> Result<Value, String>>;
+/// Runs an effect, given its derivation's inputs and `passthru`.
+pub(crate) type Builder = Rc<dyn Fn(&Inputs, &Value) -> Result<Value, String>>;
+
+/// What a derivation recorded for its builder.
+#[derive(Debug, Clone)]
+struct Recorded {
+    inputs: Inputs,
+
+    /// Unforced, or `null` without one.
+    passthru: Value,
+}
 
 /// Derivations and builders of a session.
 pub(crate) struct Derivations {
-    /// Inputs of derivations, keyed by output path. Never pruned: an output
-    /// may be imported in any later evaluation.
-    outputs: RefCell<FxHashMap<PathBuf, Inputs>>,
+    /// Derivations, keyed by output path. Never pruned: an output may be
+    /// imported in any later evaluation. The latest of those sharing an
+    /// output path wins.
+    outputs: RefCell<FxHashMap<PathBuf, Recorded>>,
 
     /// Keyed by the string derivations name them by.
     builders: FxHashMap<String, Builder>,
@@ -156,10 +170,13 @@ mod global_builtins {
         generators::{self, Gen, GenCo},
     };
 
-    use super::{Derivations, Digest, Inputs, Sha256, is_valid_name, output_path, update};
+    use super::{
+        Derivations, Digest, Inputs, Recorded, Sha256, is_valid_name, output_path, update,
+    };
 
     /// Describes an effect, run by importing it. Attributes are coerced to
-    /// strings, as by Nix, and hashed into the output path. Returns the
+    /// strings, as by Nix, and hashed into the output path, except
+    /// `passthru`, which is kept as is. Returns the
     /// attributes with `type = "derivation"` and `outPath`, overriding any
     /// given.
     #[builtin("derivation")]
@@ -176,7 +193,13 @@ mod global_builtins {
 
         let mut hash = Sha256::new();
         let mut inputs = Inputs::new();
+        let mut passthru = Value::Null;
         for (key, value) in fields {
+            if key.as_bytes() == b"passthru" {
+                passthru = value;
+                continue;
+            }
+
             let kind = CoercionKind {
                 strong: true,
                 import_paths: true,
@@ -213,7 +236,10 @@ mod global_builtins {
             ("outPath", Value::from(path.display().to_string())),
         ]));
 
-        state.outputs.borrow_mut().insert(path, inputs);
+        state
+            .outputs
+            .borrow_mut()
+            .insert(path, Recorded { inputs, passthru });
 
         Ok(Value::attrs(attrs))
     }
@@ -228,7 +254,7 @@ mod derivation_builtins {
         generators::{Gen, GenCo},
     };
 
-    use super::Derivations;
+    use super::{Derivations, Recorded};
 
     /// Runs the derivation that outputs `path`, through its builder.
     #[builtin("realise")]
@@ -238,14 +264,14 @@ mod derivation_builtins {
         path: Value,
     ) -> Result<Value, ErrorKind> {
         let path = PathBuf::from(String::from_utf8_lossy(path.to_str()?.as_bytes()).as_ref());
-        let inputs =
+        let Recorded { inputs, passthru } =
             state.outputs.borrow().get(&path).cloned().ok_or_else(|| {
                 ErrorKind::Abort(format!("No derivation outputs {}", path.display()))
             })?;
 
         let builder = &inputs["builder"];
         let result = match state.builders.get(builder) {
-            Some(run) => run(&inputs),
+            Some(run) => run(&inputs, &passthru),
             None => Err(format!("Unknown builder {builder:?}")),
         };
 

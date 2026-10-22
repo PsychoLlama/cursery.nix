@@ -116,6 +116,26 @@ describe("derivations", () => {
     ]);
   });
 
+  it("keeps `passthru` out of the hash", () => {
+    using view = render(
+      logger(nix`html.button {
+        on.click = event:
+          let
+            drv = passthru: derivation { name = "example"; builder = "none"; inherit passthru; };
+          in
+          {
+            same = (drv 1).outPath == (drv 2).outPath;
+            # Functions can't be coerced, so this would throw if hashed.
+            value = (drv { f = x: x * 2; }).passthru.f 3;
+          };
+      }`),
+    );
+
+    view.get("button").click();
+
+    expect(logged(view)).toEqual([{ same: true, value: 6 }]);
+  });
+
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {
