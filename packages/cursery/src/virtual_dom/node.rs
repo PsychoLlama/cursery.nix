@@ -1,6 +1,8 @@
 //! Views over the Nix values `<web/dom>` builds. Reading one copies pointers,
 //! never contents.
 
+use std::collections::HashSet;
+
 use js_sys::Reflect;
 use snix_eval::{NixAttrs, NixList, NixString, Value};
 use wasm_bindgen::JsValue;
@@ -13,6 +15,14 @@ pub(super) enum Node {
 }
 
 impl Node {
+    /// Identifies the node among its siblings. Text nodes have no key.
+    pub(super) fn key(&self) -> Result<Option<NixString>, Error> {
+        match self {
+            Self::Element(element) => element.key(),
+            Self::Text(_) => Ok(None),
+        }
+    }
+
     pub(super) fn from_value(value: &Value) -> Result<Self, Error> {
         let node = value.to_attrs()?;
         match utf8(&string(field(&node, "_type")?)?)? {
@@ -26,6 +36,13 @@ impl Node {
 pub(super) struct Element(NixAttrs);
 
 impl Element {
+    pub(super) fn key(&self) -> Result<Option<NixString>, Error> {
+        match forced(field(&self.0, "key")?) {
+            Value::Null => Ok(None),
+            value => Ok(Some(string(&value)?)),
+        }
+    }
+
     pub(super) fn tag(&self) -> Result<NixString, Error> {
         string(field(&self.0, "tag")?)
     }
@@ -44,6 +61,24 @@ impl Element {
     pub(super) fn handlers(&self) -> Result<Handlers, Error> {
         Ok(Handlers(field(&self.0, "on")?.to_attrs()?))
     }
+}
+
+/// Reads a list of children, checking that their keys are unique.
+pub(super) fn children(children: &NixList) -> Result<Vec<Node>, Error> {
+    let mut keys = HashSet::new();
+    children
+        .iter()
+        .map(|child| {
+            let node = Node::from_value(child)?;
+            if let Some(key) = node.key()?
+                && !keys.insert(key.clone())
+            {
+                return Err(Error::InvalidNode(format!("duplicate key {key}")));
+            }
+
+            Ok(node)
+        })
+        .collect()
 }
 
 /// Handlers are functions, or null for none.

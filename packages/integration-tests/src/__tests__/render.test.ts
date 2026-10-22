@@ -214,6 +214,141 @@ describe("mount", () => {
   });
 });
 
+describe("keys", () => {
+  /** Renders `before`, then patches to `after`, with keyed `<li>`s. */
+  function patch(before: string, after: string) {
+    const items = (keys: string) => nix`{
+      render = state: html.ul (map (key: html.li { inherit key; } key) ${keys});
+    }`;
+
+    const view = render(items(before));
+    const ul = view.container.firstElementChild!;
+    const nodes = new Map([...ul.children].map((li) => [li.textContent, li]));
+    const observer = new MutationObserver(() => {});
+    observer.observe(ul, { childList: true });
+    using next = app(items(after));
+
+    cursery.mount(view.container, next.path);
+    const records = observer.takeRecords();
+    observer.disconnect();
+
+    return {
+      ...view,
+      text: [...ul.children].map((li) => li.textContent),
+      /** Which `<li>`s are the same nodes as before. */
+      kept: [...ul.children].map((li) => nodes.get(li.textContent) === li),
+      /** How many nodes were removed or moved. */
+      removed: records.reduce(
+        (sum, record) => sum + record.removedNodes.length,
+        0,
+      ),
+    };
+  }
+
+  it("reorders keyed children", () => {
+    using result = patch(nix`[ "a" "b" "c" ]`, nix`[ "c" "a" "b" ]`);
+
+    expect(result.text).toEqual(["c", "a", "b"]);
+    expect(result.kept).toEqual([true, true, true]);
+  });
+
+  it("moves as few children as possible", () => {
+    using result = patch(nix`[ "a" "b" "c" "d" ]`, nix`[ "d" "a" "b" "c" ]`);
+
+    expect(result.removed).toBe(1);
+  });
+
+  it("inserts and removes keyed children", () => {
+    using result = patch(nix`[ "a" "b" "c" ]`, nix`[ "a" "x" "c" ]`);
+
+    expect(result.text).toEqual(["a", "x", "c"]);
+    expect(result.kept).toEqual([true, false, true]);
+  });
+
+  it("keeps the DOM state of keyed children", () => {
+    using view = render(nix`{
+      render = state: map (key: html.input { inherit key; }) [ "a" "b" ];
+    }`);
+
+    const b = view.container.lastElementChild as HTMLInputElement;
+    b.value = "typed";
+    using next = app(nix`{ render = state: html.input { key = "b"; }; }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.firstElementChild).toBe(b);
+    expect(b.value).toBe("typed");
+  });
+
+  it("matches unkeyed children by position among the unkeyed", () => {
+    using view = render(nix`{
+      render = state: [ (html.p "x") (html.b { key = "k"; }) (html.p "y") ];
+    }`);
+
+    const [x, y] = view.container.querySelectorAll("p");
+    const b = view.container.querySelector("b");
+    using next = app(nix`{
+      render = state: [ (html.b { key = "k"; }) (html.p "x") (html.p "y") ];
+    }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect([...view.container.children]).toEqual([b, x, y]);
+  });
+
+  it("treats integer keys as strings", () => {
+    using view = render(nix`{ render = state: html.p { key = 1; }; }`);
+
+    const p = view.container.firstChild;
+    using next = app(nix`{ render = state: html.p { key = "1"; }; }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.firstChild).toBe(p);
+    expect(() =>
+      render(nix`{
+        render = state: html.ul [ (html.li { key = 1; }) (html.li { key = "1"; }) ];
+      }`),
+    ).toThrow(/duplicate key "1"/);
+  });
+
+  it("replaces keyed children that change tag", () => {
+    using view = render(nix`{ render = state: html.p { key = "a"; } "a"; }`);
+    using next = app(nix`{ render = state: html.div { key = "a"; } "a"; }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.innerHTML).toBe("<div>a</div>");
+  });
+
+  it("rejects duplicate keys", () => {
+    const duplicates = nix`{
+      render = state: html.ul [ (html.li { key = "a"; }) (html.li { key = "a"; }) ];
+    }`;
+
+    expect(() => render(duplicates)).toThrow(/duplicate key "a"/);
+
+    using view = render(nix`{ render = state: html.ul [ ]; }`);
+    using next = app(duplicates);
+
+    expect(() => cursery.mount(view.container, next.path)).toThrow(
+      /duplicate key "a"/,
+    );
+    expect(view.container.innerHTML).toBe("<ul></ul>");
+  });
+
+  it("allows the same key under different parents", () => {
+    using view = render(nix`{
+      render = state: [
+        (html.ul (html.li { key = "a"; }))
+        (html.ul (html.li { key = "a"; }))
+      ];
+    }`);
+
+    expect(view.container.querySelectorAll("li")).toHaveLength(2);
+  });
+});
+
 describe("properties", () => {
   it("sets form state as properties, not attributes", () => {
     using view = render(nix`{

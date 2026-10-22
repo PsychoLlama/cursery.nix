@@ -84,6 +84,12 @@ describe("dom", () => {
     ).toBe("<input>");
   });
 
+  it("rejects invalid keys", () => {
+    expect(() => render(nix`html.li { key = 1.5; }`)).toThrow(
+      /Invalid key of type float/,
+    );
+  });
+
   it("rejects other attribute values", () => {
     expect(() => render(nix`html.p { a = [ ]; }`)).toThrow(
       /Invalid attribute \W*a\W* of type list/,

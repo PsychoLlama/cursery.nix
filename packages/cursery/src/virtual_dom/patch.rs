@@ -1,10 +1,14 @@
 //! Updates DOM nodes from one tree to the next.
 //!
-//! Children are matched by position: `key` is ignored for now. Every change
-//! is planned before any is made, so an invalid tree leaves the DOM untouched.
+//! Keyed children are matched by key, and the rest by position among the
+//! unkeyed. Matched nodes are patched in place and moved as little as
+//! possible, keeping focus and other state the DOM holds. Every change is
+//! planned before any is made, so an invalid tree leaves the DOM untouched.
 //!
 //! Attributes are diffed against the old tree. Properties (an input's
 //! `value`) are compared with the element instead, since people change them.
+
+use std::collections::{HashMap, VecDeque};
 
 use snix_eval::{NixList, Value};
 use wasm_bindgen::JsCast;
@@ -12,7 +16,7 @@ use web_sys::Document;
 
 use super::{
     create,
-    node::{Attributes, Node, Property, utf8},
+    node::{self, Attributes, Node, Property, utf8},
 };
 use crate::error::Error;
 
@@ -37,7 +41,8 @@ enum Change {
     RemoveAttribute(web_sys::Element, String),
     SetProperty(web_sys::Element, Property),
     SetText(web_sys::Node, String),
-    Append(web_sys::Node, web_sys::Node),
+    /// Parent, node, and the sibling to insert it before (or append).
+    Insert(web_sys::Node, web_sys::Node, Option<web_sys::Node>),
     /// Parent, old child, new child.
     Replace(web_sys::Node, web_sys::Node, web_sys::Node),
     Remove(web_sys::Node, web_sys::Node),
@@ -50,8 +55,8 @@ impl Change {
             Self::RemoveAttribute(element, name) => element.remove_attribute(&name)?,
             Self::SetProperty(element, property) => property.set(&element)?,
             Self::SetText(node, text) => node.set_node_value(Some(&text)),
-            Self::Append(parent, node) => {
-                parent.append_child(&node)?;
+            Self::Insert(parent, node, before) => {
+                parent.insert_before(&node, before.as_ref())?;
             }
             Self::Replace(parent, old, new) => {
                 parent.replace_child(&new, &old)?;
@@ -77,42 +82,85 @@ impl Plan<'_> {
         old: &NixList,
         new: &NixList,
     ) -> Result<(), Error> {
-        let mut old = old.iter();
-        let mut dom = parent.first_child();
-        for new in new {
-            if let (Some(old), Some(node)) = (old.next(), dom.clone()) {
-                dom = node.next_sibling();
-                self.node(parent, node, old, new)?;
+        let old = node::children(old)?;
+        let new = node::children(new)?;
+
+        // The DOM matches the old tree, node for node.
+        let mut dom = Vec::new();
+        let mut next = parent.first_child();
+        while let Some(node) = next {
+            next = node.next_sibling();
+            dom.push(node);
+        }
+
+        let mut keyed = HashMap::new();
+        let mut unkeyed = VecDeque::new();
+        for (index, node) in old.iter().enumerate().take(dom.len()) {
+            if let Some(key) = node.key()? {
+                keyed.insert(key, index);
             } else {
-                let node = create::node(&Node::from_value(new)?, self.document)?;
-                self.changes.push(Change::Append(parent.clone(), node));
+                unkeyed.push_back(index);
             }
         }
 
-        while let Some(node) = dom {
-            dom = node.next_sibling();
-            self.changes.push(Change::Remove(parent.clone(), node));
+        // Each new child's DOM node, and which old child it was.
+        let mut placed = Vec::new();
+        let mut reused = vec![false; dom.len()];
+        for new in &new {
+            let index = match new.key()? {
+                Some(key) => keyed.remove(&key),
+                None => unkeyed.pop_front(),
+            };
+
+            if let Some(index) = index {
+                reused[index] = true;
+                let node = self.node(parent, dom[index].clone(), &old[index], new)?;
+                placed.push((node, Some(index)));
+            } else {
+                placed.push((create::node(new, self.document)?, None));
+            }
+        }
+
+        for (node, reused) in dom.into_iter().zip(reused) {
+            if !reused {
+                self.changes.push(Change::Remove(parent.clone(), node));
+            }
+        }
+
+        // The longest run of old children still in order stays put. The rest
+        // are inserted around them, from the end, before their next sibling.
+        let staying = increasing(&placed.iter().map(|(_, index)| *index).collect::<Vec<_>>());
+        let mut before = None;
+        for ((node, _), staying) in placed.into_iter().zip(staying).rev() {
+            if !staying {
+                self.changes
+                    .push(Change::Insert(parent.clone(), node.clone(), before));
+            }
+
+            before = Some(node);
         }
 
         Ok(())
     }
 
+    /// Patches `dom`, rendered from `old`, to match `new`, returning the node
+    /// that ends up in its place.
     fn node(
         &mut self,
         parent: &web_sys::Node,
         dom: web_sys::Node,
-        old: &Value,
-        new: &Value,
-    ) -> Result<(), Error> {
-        match (Node::from_value(old)?, Node::from_value(new)?) {
+        old: &Node,
+        new: &Node,
+    ) -> Result<web_sys::Node, Error> {
+        match (old, new) {
             (Node::Text(old), Node::Text(new)) => {
                 if old != new {
                     self.changes
-                        .push(Change::SetText(dom, utf8(&new)?.to_owned()));
+                        .push(Change::SetText(dom.clone(), utf8(new)?.to_owned()));
                 }
             }
             (Node::Element(old), Node::Element(new)) if old.tag()? == new.tag()? => {
-                let element: web_sys::Element = dom.unchecked_into();
+                let element: web_sys::Element = dom.clone().unchecked_into();
                 let attributes = new.attributes()?;
                 self.attributes(&element, &old.attributes()?, &attributes)?;
                 self.children(&element, &old.children()?, &new.children()?)?;
@@ -125,13 +173,14 @@ impl Plan<'_> {
                 }
             }
             (_, new) => {
-                let node = create::node(&new, self.document)?;
+                let node = create::node(new, self.document)?;
                 self.changes
-                    .push(Change::Replace(parent.clone(), dom, node));
+                    .push(Change::Replace(parent.clone(), dom, node.clone()));
+                return Ok(node);
             }
         }
 
-        Ok(())
+        Ok(dom)
     }
 
     fn attributes(
@@ -163,5 +212,59 @@ impl Plan<'_> {
         }
 
         Ok(())
+    }
+}
+
+/// Marks a longest strictly increasing run in `sequence`, skipping `None`.
+fn increasing(sequence: &[Option<usize>]) -> Vec<bool> {
+    // `ends[length - 1]` is the position ending the run of `length` with the
+    // smallest last value, and `previous` links each position to the one
+    // before it in its run.
+    let mut ends: Vec<usize> = Vec::new();
+    let mut previous = vec![None; sequence.len()];
+    for (position, value) in sequence.iter().enumerate() {
+        if value.is_none() {
+            continue;
+        }
+
+        let length = ends.partition_point(|&end| sequence[end] < *value);
+        previous[position] = length.checked_sub(1).map(|length| ends[length]);
+        if length == ends.len() {
+            ends.push(position);
+        } else {
+            ends[length] = position;
+        }
+    }
+
+    let mut marked = vec![false; sequence.len()];
+    let mut next = ends.last().copied();
+    while let Some(position) = next {
+        marked[position] = true;
+        next = previous[position];
+    }
+
+    marked
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marks_increasing_runs() {
+        let marked = |sequence: &[Option<usize>]| -> Vec<usize> {
+            increasing(sequence)
+                .iter()
+                .enumerate()
+                .filter_map(|(position, marked)| marked.then_some(position))
+                .collect()
+        };
+
+        assert_eq!(marked(&[]), Vec::<usize>::new());
+        assert_eq!(marked(&[Some(0), Some(1), Some(2)]), [0, 1, 2]);
+        assert_eq!(marked(&[Some(2), Some(0), Some(1)]), [1, 2]);
+        assert_eq!(marked(&[Some(1), Some(2), Some(0)]), [0, 1]);
+        assert_eq!(marked(&[Some(3), None, Some(1), Some(2), None]), [2, 3]);
+        assert_eq!(marked(&[None, None]), Vec::<usize>::new());
     }
 }

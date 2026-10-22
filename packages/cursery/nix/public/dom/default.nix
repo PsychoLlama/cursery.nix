@@ -56,6 +56,18 @@ let
     else
       throw "Invalid `on` of type ${builtins.typeOf on}: expected an attrset of handlers";
 
+  # Keys identify an element among its siblings, so it's patched rather than
+  # recreated when siblings come and go or reorder. Integers become strings,
+  # so `1` and `"1"` are the same key.
+  key =
+    value:
+    if value == null || builtins.isString value then
+      value
+    else if builtins.isInt value then
+      toString value
+    else
+      throw "Invalid key of type ${builtins.typeOf value}: expected a string, integer, or null";
+
   # Applies attrs or children to an element, returning a new element. `key` is
   # lifted out of attrs to identify the node among its siblings when diffing,
   # and `on` to hold event handlers.
@@ -64,7 +76,7 @@ let
     if isAttrs arg then
       self
       // {
-        key = arg.key or self.key;
+        key = if arg ? key then key arg.key else self.key;
         on = self.on // handlers (arg.on or { });
         attrs =
           self.attrs

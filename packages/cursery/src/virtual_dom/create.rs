@@ -5,15 +5,14 @@ use js_sys::Array;
 use snix_eval::Value;
 use web_sys::Document;
 
-use super::node::{Element, Node, utf8};
+use super::node::{self, Element, Node, utf8};
 use crate::error::Error;
 
 /// Creates DOM nodes for a list of children.
 pub(super) fn children(children: &Value, document: &Document) -> Result<Array, Error> {
-    children
-        .to_list()?
+    node::children(&children.to_list()?)?
         .iter()
-        .map(|child| node(&Node::from_value(child)?, document))
+        .map(|child| node(child, document))
         .collect()
 }
 
@@ -33,8 +32,8 @@ fn element(element: &Element, document: &Document) -> Result<web_sys::Element, E
         }
     }
 
-    for child in &element.children()? {
-        created.append_child(&node(&Node::from_value(child)?, document)?)?;
+    for child in &node::children(&element.children()?)? {
+        created.append_child(&node(child, document)?)?;
     }
 
     // After children, so a select's options exist to choose from.
