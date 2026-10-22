@@ -1,6 +1,7 @@
 //! WASM bindings for evaluating Nix.
 
 mod app;
+mod commands;
 mod derivations;
 mod error;
 mod events;

@@ -9,7 +9,8 @@
 # `update` gets `{ type; payload; }`, without `payload` if none was given.
 # Return a dispatch from a handler to run it, or import it in a handler to
 # run it now: it updates, renders, then returns the next state, or throws if
-# it failed. Imports run when forced, so force the result in the handler: forced later, e.g. in `update`, it can't dispatch.
+# it failed. Imports run when forced, so force the result in the handler:
+# forced later, e.g. in `update`, it can't dispatch.
 #
 # Each dispatch hashes the current generation, so importing the same action
 # again, e.g. twice in one handler, runs it again.
@@ -17,6 +18,21 @@
 # Derivations override `type`, so the action's type is the `action` input.
 # The payload goes in `passthru`, as is: it isn't hashed, so dispatches that
 # differ only in their payload share an output path.
+#
+# `runCommand` runs JavaScript, like nixpkgs' `runCommand` runs a shell
+# script. Assign the result to `$out`. Each attr of `env` is in scope as
+# `$<name>`:
+#
+#   io.runCommand "double" { count = 3; } ''
+#     $out = $count * 2;
+#   ''
+#
+# Return it from a handler to run it, or import it in a handler to get
+# `$out` back, as JSON would have it, or throw what the script threw. Scripts
+# run synchronously, so `$out` can't be a promise.
+#
+# `env` goes in `passthru`, so it's passed as is rather than coerced. Like
+# dispatches, commands hash the current generation, so each import runs.
 
 let
   action =
@@ -44,8 +60,20 @@ let
             passthru = { inherit payload; };
           };
       };
+
+  runCommand =
+    name: env: script:
+    if !builtins.isAttrs env then
+      throw "Invalid env of type ${builtins.typeOf env}: expected an attrset"
+    else
+      derivation {
+        inherit name script;
+        builder = "builtin:runCommand";
+        generation = builtins.__currentGeneration env;
+        passthru = { inherit env; };
+      };
 in
 
 {
-  inherit dispatch;
+  inherit dispatch runCommand;
 }

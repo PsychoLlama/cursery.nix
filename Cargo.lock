@@ -121,6 +121,7 @@ dependencies = [
  "include_dir",
  "js-sys",
  "rustc-hash 2.1.3",
+ "serde_json",
  "sha2",
  "smol_str",
  "snix-eval",
