@@ -30,14 +30,16 @@ use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fmt,
+    future::Future,
     io::{self, Cursor, Read},
     path::{Path, PathBuf},
+    pin::Pin,
     rc::Rc,
 };
 
 use rustc_hash::FxHashMap;
 use sha2::{Digest, Sha256};
-use snix_eval::{EvalIO, FileType, Value, builtin_macros::builtins};
+use snix_eval::{EvalIO, FileType, Value, builtin_macros::builtins, generators::GenCo};
 
 use crate::{memfs::MemoryFilesystem, store_path::output_path};
 
@@ -47,8 +49,14 @@ pub(crate) use global_builtins::builtins as global_builtins;
 /// A derivation's attributes, coerced to strings.
 pub(crate) type Inputs = BTreeMap<String, String>;
 
-/// Runs an effect, given its derivation's inputs and `passthru`.
-pub(crate) type Builder = Rc<dyn Fn(&Inputs, &Value) -> Result<Value, String>>;
+/// A running build: its result, or why it failed.
+pub(crate) type Build<'co> = Pin<Box<dyn Future<Output = Result<Value, String>> + 'co>>;
+
+/// Runs an effect, given its derivation's inputs and `passthru`. Builders
+/// are async, so they can call back into the evaluation through `co`, e.g.
+/// to force `passthru`. A catchable error they return propagates as if the
+/// `import` threw it.
+pub(crate) type Builder = Rc<dyn for<'co> Fn(&'co GenCo, Inputs, Value) -> Build<'co>>;
 
 /// What a derivation recorded for its builder.
 #[derive(Debug, Clone)]
@@ -270,12 +278,13 @@ mod derivation_builtins {
             })?;
 
         let builder = &inputs["builder"];
-        let result = match state.builders.get(builder) {
-            Some(run) => run(&inputs, &passthru),
+        let result = match state.builders.get(builder).cloned() {
+            Some(run) => run(&co, inputs, passthru).await,
             None => Err(format!("Unknown builder {builder:?}")),
         };
 
         let fields = match result {
+            Ok(value) if value.is_catchable() => return Ok(value),
             Ok(value) => [("type", Value::from("success")), ("value", value)],
             Err(error) => [
                 ("type", Value::from("error")),
