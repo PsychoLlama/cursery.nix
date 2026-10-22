@@ -159,7 +159,7 @@ impl Plan<'_> {
                         .push(Change::SetText(dom.clone(), utf8(new)?.to_owned()));
                 }
             }
-            (Node::Element(old), Node::Element(new)) if old.tag()? == new.tag()? => {
+            (Node::Element(old), Node::Element(new)) if old.is_same_kind(new)? => {
                 let element: web_sys::Element = dom.clone().unchecked_into();
                 let attributes = new.attributes()?;
                 self.attributes(&element, &old.attributes()?, &attributes)?;

@@ -3,7 +3,7 @@ import { load, mount, nix } from "../testing.ts";
 /** Renders `code` with the DOM builders in scope, returning its HTML. */
 function render(code: string): string {
   using app = load({
-    "default.nix": nix`let inherit (import <web/dom>) element html text; in {
+    "default.nix": nix`let inherit (import <web/dom>) element html svg text; in {
       render = state: ${code};
     }`,
   });
@@ -111,6 +111,30 @@ describe("dom", () => {
   it("rejects other attribute values", () => {
     expect(() => render(nix`html.p { a = [ ]; }`)).toThrow(
       /Invalid attribute \W*a\W* of type list/,
+    );
+  });
+
+  it("creates SVG elements", () => {
+    expect(
+      render(
+        nix`svg.svg { viewBox = "0 0 10 10"; } (svg.circle { cx = 5; r = 5; })`,
+      ),
+    ).toBe('<svg viewBox="0 0 10 10"><circle cx="5" r="5"></circle></svg>');
+  });
+
+  it("creates SVG elements in the SVG namespace", () => {
+    using app = load({
+      "default.nix": nix`let inherit (import <web/dom>) html svg; in {
+        render = state: [ (html.a "html") (svg.svg (svg.a "svg")) ];
+      }`,
+    });
+    using view = mount(app.path);
+
+    const [html, svg] = view.container.querySelectorAll("a");
+    expect(html!.namespaceURI).toBe("http://www.w3.org/1999/xhtml");
+    expect(svg!.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect(view.container.querySelector("svg")!.namespaceURI).toBe(
+      "http://www.w3.org/2000/svg",
     );
   });
 

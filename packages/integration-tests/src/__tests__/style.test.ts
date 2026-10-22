@@ -94,6 +94,61 @@ describe("css", () => {
   });
 });
 
+describe("image", () => {
+  /** The data in the URL `image` makes of `children`, still encoded. */
+  function encoded(children: string): string {
+    const url = cursery.evaluate(nix`let
+      inherit (import <web/dom>) html svg;
+      inherit (import <web/style>) image;
+    in image (${children})`) as string;
+
+    return /^url\("data:image\/svg\+xml,(.*)"\)$/.exec(url)![1]!;
+  }
+
+  /** The markup of the image `image` makes of `children`. */
+  function image(children: string): string {
+    return decodeURIComponent(encoded(children));
+  }
+
+  it("makes a data URL of the markup", () => {
+    expect(
+      image(nix`svg.svg { viewBox = "0 0 10 10"; } (svg.circle { r = 5; })`),
+    ).toBe(
+      '<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><circle r="5"></circle></svg>',
+    );
+  });
+
+  it("encodes what the URL can't hold", () => {
+    const data = encoded(nix`svg.svg { fill = "#a"; } "100%"`);
+
+    expect(data).not.toMatch(/[#<>"]/);
+    expect(data).toContain("100%25");
+  });
+
+  it("escapes attributes and text", () => {
+    expect(image(nix`svg.text { a = ''"&''; } "<&>"`)).toBe(
+      '<text a="&quot;&amp;" xmlns="http://www.w3.org/2000/svg">&lt;&amp;&gt;</text>',
+    );
+  });
+
+  it("keeps an explicit xmlns", () => {
+    expect(image(nix`svg.svg { xmlns = "other"; }`)).toBe(
+      '<svg xmlns="other"></svg>',
+    );
+  });
+
+  it("rejects handlers and styles", () => {
+    expect(() => image(nix`svg.svg { on.click = event: null; }`)).toThrow(
+      /handlers can't run there/,
+    );
+    expect(() =>
+      image(
+        nix`svg.svg { class = (import <web/style>).css { fill = "red"; }; }`,
+      ),
+    ).toThrow(/styles don't apply there/);
+  });
+});
+
 describe("styles", () => {
   it("sets the class name", () => {
     using view = render(

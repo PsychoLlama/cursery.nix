@@ -47,10 +47,28 @@ impl Element {
         string(field(&self.0, "tag")?)
     }
 
+    /// The namespace of SVG and other non-HTML elements, or `None` for HTML.
+    pub(super) fn namespace(&self) -> Result<Option<NixString>, Error> {
+        match self.0.select("namespace").map(forced) {
+            None | Some(Value::Null) => Ok(None),
+            Some(value) => Ok(Some(string(&value)?)),
+        }
+    }
+
+    /// Whether `other` can be patched into this element: the same tag, in
+    /// the same namespace.
+    pub(super) fn is_same_kind(&self, other: &Self) -> Result<bool, Error> {
+        Ok(self.tag()? == other.tag()? && self.namespace()? == other.namespace()?)
+    }
+
     pub(super) fn attributes(&self) -> Result<Attributes, Error> {
         Ok(Attributes {
             attrs: field(&self.0, "attrs")?.to_attrs()?,
-            properties: properties(utf8(&self.tag()?)?),
+            properties: if self.namespace()?.is_some() {
+                &[]
+            } else {
+                properties(utf8(&self.tag()?)?)
+            },
         })
     }
 

@@ -5,7 +5,7 @@ import { load, mount, nix } from "../testing.ts";
 /** Loads an app whose `default.nix` has the DOM builders in scope. */
 function app(code: string) {
   return load({
-    "default.nix": nix`let inherit (import <web/dom>) element html; in ${code}`,
+    "default.nix": nix`let inherit (import <web/dom>) element html svg; in ${code}`,
   });
 }
 
@@ -319,6 +319,17 @@ describe("keys", () => {
     cursery.mount(view.container, next.path);
 
     expect(view.container.innerHTML).toBe("<div>a</div>");
+  });
+
+  it("replaces keyed children that change namespace", () => {
+    using view = render(nix`{ render = state: html.a { key = "a"; }; }`);
+    using next = app(nix`{ render = state: svg.a { key = "a"; }; }`);
+
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.firstElementChild!.namespaceURI).toBe(
+      "http://www.w3.org/2000/svg",
+    );
   });
 
   it("rejects duplicate keys", () => {

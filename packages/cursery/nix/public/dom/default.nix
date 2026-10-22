@@ -28,6 +28,11 @@
 #
 #   html.a { on.click = event: import (event.preventDefault { }); }
 #
+# `svg` has builders for SVG elements, rendered inline or, through `image`
+# from `<web/style>`, as CSS images:
+#
+#   svg.svg { viewBox = "0 0 10 10"; } (svg.circle { cx = 5; cy = 5; r = 5; })
+#
 # Builders normalize children as they go (see `internal/children.nix`).
 
 let
@@ -142,10 +147,11 @@ let
     else
       self // { children = self.children ++ normalize arg; };
 
-  # Creates an element with no attrs or children.
-  element = tag: {
+  # Creates an element in `namespace` (`null` for HTML), with no attrs or
+  # children.
+  elementIn = namespace: tag: {
     _type = "element";
-    inherit tag;
+    inherit namespace tag;
     key = null;
     on = { };
     styles = { };
@@ -154,8 +160,20 @@ let
     __functor = apply;
   };
 
+  element = elementIn null;
+
+  # A builder per tag, by tag.
+  builders =
+    namespace: tags:
+    builtins.listToAttrs (
+      map (tag: {
+        name = tag;
+        value = elementIn namespace tag;
+      }) tags
+    );
+
   # https://html.spec.whatwg.org/multipage/indices.html#elements-3
-  tags = [
+  htmlTags = [
     "a"
     "abbr"
     "address"
@@ -269,16 +287,82 @@ let
     "video"
     "wbr"
   ];
+
+  # https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element
+  svgTags = [
+    "a"
+    "animate"
+    "animateMotion"
+    "animateTransform"
+    "circle"
+    "clipPath"
+    "defs"
+    "desc"
+    "ellipse"
+    "feBlend"
+    "feColorMatrix"
+    "feComponentTransfer"
+    "feComposite"
+    "feConvolveMatrix"
+    "feDiffuseLighting"
+    "feDisplacementMap"
+    "feDistantLight"
+    "feDropShadow"
+    "feFlood"
+    "feFuncA"
+    "feFuncB"
+    "feFuncG"
+    "feFuncR"
+    "feGaussianBlur"
+    "feImage"
+    "feMerge"
+    "feMergeNode"
+    "feMorphology"
+    "feOffset"
+    "fePointLight"
+    "feSpecularLighting"
+    "feSpotLight"
+    "feTile"
+    "feTurbulence"
+    "filter"
+    "foreignObject"
+    "g"
+    "image"
+    "line"
+    "linearGradient"
+    "marker"
+    "mask"
+    "metadata"
+    "mpath"
+    "path"
+    "pattern"
+    "polygon"
+    "polyline"
+    "radialGradient"
+    "rect"
+    "script"
+    "set"
+    "stop"
+    "style"
+    "svg"
+    "switch"
+    "symbol"
+    "text"
+    "textPath"
+    "title"
+    "tspan"
+    "use"
+    "view"
+  ];
 in
 
 {
   inherit element text;
 
   # A builder per HTML element, e.g. `html.div attrs children`.
-  html = builtins.listToAttrs (
-    map (tag: {
-      name = tag;
-      value = element tag;
-    }) tags
-  );
+  html = builders null htmlTags;
+
+  # A builder per SVG element, e.g. `svg.circle { r = 5; }`. Separate from
+  # `html`, since some tags are in both (`a`, `title`).
+  svg = builders "http://www.w3.org/2000/svg" svgTags;
 }

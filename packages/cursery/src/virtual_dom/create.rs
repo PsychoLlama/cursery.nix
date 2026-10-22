@@ -24,7 +24,11 @@ pub(super) fn node(node: &Node, document: &Document) -> Result<web_sys::Node, Er
 }
 
 fn element(element: &Element, document: &Document) -> Result<web_sys::Element, Error> {
-    let created = document.create_element(utf8(&element.tag()?)?)?;
+    let tag = element.tag()?;
+    let created = match element.namespace()? {
+        Some(namespace) => document.create_element_ns(Some(utf8(&namespace)?), utf8(&tag)?)?,
+        None => document.create_element(utf8(&tag)?)?,
+    };
     let attributes = element.attributes()?;
     for name in attributes.names() {
         if let Some(value) = attributes.get(name)? {

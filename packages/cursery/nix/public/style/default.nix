@@ -24,9 +24,23 @@
 # Classes are named by a hash of their rules, so identical rules share a class
 # and names survive reloads. Rules go in `@layer components`, so Tailwind's
 # utilities override them.
+#
+# `image` turns nodes, like an SVG from `<web/dom>`, into a CSS image:
+#
+#   check = svg.svg { viewBox = "0 0 100 100"; } (svg.path { d = "..."; });
+#   css { background-image = image check; }
 
 let
   inherit (import ../../internal/css.nix) block;
+  inherit (import ../../internal/markup.nix) markup;
+
+  # Percent-encodes what data URLs and CSS strings can't hold as is.
+  encode =
+    builtins.replaceStrings
+      [ "%" "#" "<" ">" "\"" "\n" ]
+      [ "%25" "%23" "%3C" "%3E" "%22" "%0A" ];
+
+  image = children: "url(\"data:image/svg+xml,${encode (markup children)}\")";
 
   css =
     rules:
@@ -45,5 +59,5 @@ let
 in
 
 {
-  inherit css;
+  inherit css image;
 }
