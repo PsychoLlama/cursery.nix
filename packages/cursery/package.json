@@ -2,7 +2,7 @@
   "name": "cursery",
   "private": true,
   "version": "0.1.0",
-  "description": "Nix evaluator compiled to WASM",
+  "description": "Framework for web apps authored in Nix",
   "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
   "license": "GPL-3.0-only",
   "repository": {
