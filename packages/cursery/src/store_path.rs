@@ -33,6 +33,18 @@ pub(crate) fn store_path(files: &Files) -> PathBuf {
         nar.finalize(),
         store_dir().display()
     );
+    fingerprinted(&fingerprint, NAME)
+}
+
+/// The store path for an output named `name` of a derivation whose SHA-256
+/// is `hash` (in hex), e.g. `/nix/store/<hash>-<name>`.
+pub(crate) fn output_path(hash: &str, name: &str) -> PathBuf {
+    let fingerprint = format!("output:out:sha256:{hash}:{}:{name}", store_dir().display());
+
+    fingerprinted(&fingerprint, name)
+}
+
+fn fingerprinted(fingerprint: &str, name: &str) -> PathBuf {
     let digest = Sha256::digest(fingerprint);
 
     // Folded down to 160 bits.
@@ -41,7 +53,7 @@ pub(crate) fn store_path(files: &Files) -> PathBuf {
         compressed[index % compressed.len()] ^= byte;
     }
 
-    store_dir().join(format!("{}-{NAME}", nixbase32(&compressed)))
+    store_dir().join(format!("{}-{name}", nixbase32(&compressed)))
 }
 
 /// Serializes `files` as a directory NAR.

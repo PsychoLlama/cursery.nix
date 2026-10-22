@@ -88,7 +88,9 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
         return Ok(());
     }
 
-    let event = events::snapshot(event)?;
+    // Builders act on the event only while it dispatches.
+    let dispatch = mount.session.dispatching().start(event);
+    let event = events::snapshot(event, &dispatch)?;
     let mut kept = None;
     for handler in handlers {
         let result = mount.session.evaluate(

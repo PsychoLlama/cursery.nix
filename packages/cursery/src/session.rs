@@ -12,9 +12,17 @@ use std::{
 
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
-use snix_eval::{EvalIO, EvalMode, Evaluation, EvaluationBuilder, GlobalsMap, SourceCode, Value};
+use snix_eval::{
+    EvalIO, EvalMode, Evaluation, EvaluationBuilder, GlobalsMap, NixAttrs, SourceCode, Value,
+};
 
-use crate::{error::Error, memfs::MemoryFilesystem, store};
+use crate::{
+    derivations::{self, Derivations, DerivationsIO},
+    error::Error,
+    events::Dispatching,
+    memfs::MemoryFilesystem,
+    store,
+};
 
 #[derive(Debug)]
 pub(crate) struct Session {
@@ -23,15 +31,26 @@ pub(crate) struct Session {
     bundled_path: PathBuf,
     globals: Rc<GlobalsMap>,
     source_map: SourceCode,
+    derivations: Rc<Derivations>,
+    dispatching: Rc<Dispatching>,
 }
 
 impl Session {
     pub(crate) fn new() -> Self {
         let (filesystem, bundled_path) = store::snapshot();
         let source_map = SourceCode::default();
+        let dispatching = Rc::new(Dispatching::default());
+        let derivations = Rc::new(Derivations::new(dispatching.builders()));
 
         // Building an evaluation prepares the globals for its source map.
-        let globals = builder(&filesystem, &bundled_path)
+        let globals = builder(&filesystem, &bundled_path, &derivations)
+            .add_builtins(derivations::global_builtins(Rc::clone(&derivations)))
+            .add_builtins([(
+                "__derivation",
+                Value::attrs(NixAttrs::from_iter(derivations::derivation_builtins(
+                    Rc::clone(&derivations),
+                ))),
+            )])
             .with_source_map(source_map.clone())
             .build()
             .globals();
@@ -41,12 +60,19 @@ impl Session {
             bundled_path,
             globals,
             source_map,
+            derivations,
+            dispatching,
         }
     }
 
     /// Store path of the bundled library.
     pub(crate) fn bundled_path(&self) -> &Path {
         &self.bundled_path
+    }
+
+    /// Events dispatching to the session.
+    pub(crate) fn dispatching(&self) -> &Rc<Dispatching> {
+        &self.dispatching
     }
 
     /// Evaluate `code`, with `variables` in scope.
@@ -61,7 +87,7 @@ impl Session {
             .map(|(name, value)| (SmolStr::new_static(name), value.clone()))
             .collect();
 
-        let result = builder(&self.filesystem, &self.bundled_path)
+        let result = builder(&self.filesystem, &self.bundled_path, &self.derivations)
             .with_globals(Rc::clone(&self.globals))
             .with_source_map(self.source_map.clone())
             .env(Some(&variables))
@@ -81,14 +107,18 @@ impl Session {
 
 /// Evaluation is pure: impure builtins are unavailable. Loaded files are
 /// importable by path, and bundled libraries through the search path as
-/// `<web>`.
+/// `<web>`. Derivations are importable once described (see `derivations`).
 fn builder<'env>(
     filesystem: &MemoryFilesystem,
     bundled_path: &Path,
+    derivations: &Rc<Derivations>,
 ) -> EvaluationBuilder<'static, 'static, 'env, Box<dyn EvalIO>> {
-    let filesystem: Box<dyn EvalIO> = Box::new(filesystem.clone());
+    let io: Box<dyn EvalIO> = Box::new(DerivationsIO {
+        filesystem: filesystem.clone(),
+        derivations: Rc::clone(derivations),
+    });
     Evaluation::builder_pure()
-        .io_handle(filesystem)
+        .io_handle(io)
         .enable_import()
         // Only `public/` is exposed, keeping internal modules out of `<web/...>`.
         .nix_path(Some(format!(

@@ -590,7 +590,7 @@ dependencies = [
 [[package]]
 name = "snix-eval"
 version = "0.1.0"
-source = "git+https://github.com/PsychoLlama/snix.git?rev=1e81041e2d1aa3ac5fc64fd823cd91e551c3a81a#1e81041e2d1aa3ac5fc64fd823cd91e551c3a81a"
+source = "git+https://github.com/PsychoLlama/snix.git?rev=8d5b4389d2ba12532e76205832134db45b470dd7#8d5b4389d2ba12532e76205832134db45b470dd7"
 dependencies = [
  "bstr",
  "bytes",
@@ -623,7 +623,7 @@ dependencies = [
 [[package]]
 name = "snix-eval-builtin-macros"
 version = "0.0.1"
-source = "git+https://github.com/PsychoLlama/snix.git?rev=1e81041e2d1aa3ac5fc64fd823cd91e551c3a81a#1e81041e2d1aa3ac5fc64fd823cd91e551c3a81a"
+source = "git+https://github.com/PsychoLlama/snix.git?rev=8d5b4389d2ba12532e76205832134db45b470dd7#8d5b4389d2ba12532e76205832134db45b470dd7"
 dependencies = [
  "proc-macro2",
  "quote",
