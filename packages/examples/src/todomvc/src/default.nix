@@ -5,6 +5,8 @@ let
 
   header = import ./components/header.nix;
   todoList = import ./components/todo-list.nix;
+  toggleAll = import ./components/toggle-all.nix;
+  footer = import ./components/footer.nix;
 
   app = css {
     position = "relative";
@@ -28,10 +30,20 @@ in
     };
   };
 
+  # The list and footer show once there are todos.
   render = state: [
     (html.section { class = app; } [
       (header { })
-      (todoList { inherit (state) todos; })
+      (
+        if state.todos == [ ] then
+          null
+        else
+          [
+            (toggleAll { inherit (state) todos; })
+            (todoList { inherit (state) todos; })
+            (footer { inherit (state) todos; })
+          ]
+      )
     ])
   ];
 }

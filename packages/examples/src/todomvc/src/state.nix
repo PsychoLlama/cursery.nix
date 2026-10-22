@@ -40,6 +40,13 @@ let
     toggle = state: id: updateTodo state id (todo: todo // { completed = !todo.completed; });
 
     destroy = state: id: state // { todos = builtins.filter (todo: todo.id != id) state.todos; };
+
+    # Completes every todo, or none.
+    toggleAll =
+      state: completed: state // { todos = map (todo: todo // { inherit completed; }) state.todos; };
+
+    clearCompleted =
+      state: _: state // { todos = builtins.filter (todo: !todo.completed) state.todos; };
   };
 in
 
