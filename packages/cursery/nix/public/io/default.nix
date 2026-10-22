@@ -12,6 +12,9 @@
 # `{ type = "success"; value; }`. Imports run when forced, so force the
 # result in the handler: forced later, e.g. in `update`, it can't dispatch.
 #
+# Each dispatch hashes the current generation, so importing the same action
+# again, e.g. twice in one handler, runs it again.
+#
 # Derivations override `type`, so the action's type is the `action` input.
 # The payload goes in `passthru`, as is: it isn't hashed, so dispatches that
 # differ only in their payload share an output path.
@@ -23,6 +26,7 @@ let
       {
         name = "dispatch";
         builder = "builtin:dispatch";
+        generation = builtins.__currentGeneration inputs;
       }
       // inputs
     );

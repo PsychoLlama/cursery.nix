@@ -143,6 +143,40 @@ describe("derivations", () => {
     expect(logged(view)).toEqual([{ same: true, value: 6 }]);
   });
 
+  it("advances the generation with each evaluation", () => {
+    using view = render(
+      logger(
+        nix`html.button { on.click = event: log (builtins.__currentGeneration event); }`,
+      ),
+    );
+
+    view.get("button").click();
+    view.get("button").click();
+
+    const [first, second] = logged(view) as number[];
+    expect(second).toBeGreaterThan(first!);
+  });
+
+  it("advances the generation after each build", () => {
+    using view = render(
+      logger(nix`html.button {
+        on.click = event:
+          let
+            before = builtins.__currentGeneration event;
+            built = import (event.preventDefault { });
+          in
+          if before >= 0 && built.type == "success" then
+            log (builtins.__currentGeneration built > before)
+          else
+            null;
+      }`),
+    );
+
+    view.get("button").click();
+
+    expect(logged(view)).toEqual([true]);
+  });
+
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {

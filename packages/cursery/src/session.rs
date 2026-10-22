@@ -90,6 +90,7 @@ impl Session {
             .map(|(name, value)| (SmolStr::new_static(name), value.clone()))
             .collect();
 
+        self.derivations.advance();
         let result = builder(&self.filesystem, &self.bundled_path, &self.derivations)
             .with_globals(Rc::clone(&self.globals))
             .with_source_map(self.source_map.clone())

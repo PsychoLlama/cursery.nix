@@ -26,7 +26,7 @@
 //! one evaluation runs it once, because snix caches imports by path.
 
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fmt,
@@ -76,6 +76,9 @@ pub(crate) struct Derivations {
 
     /// Keyed by the string derivations name them by.
     builders: FxHashMap<String, Builder>,
+
+    /// See `builtins.__currentGeneration`.
+    generation: Cell<i64>,
 }
 
 impl fmt::Debug for Derivations {
@@ -84,15 +87,22 @@ impl fmt::Debug for Derivations {
             .debug_struct("Derivations")
             .field("outputs", &self.outputs)
             .field("builders", &self.builders.keys())
+            .field("generation", &self.generation)
             .finish()
     }
 }
 
 impl Derivations {
+    /// Starts a new generation, e.g. for each evaluation.
+    pub(crate) fn advance(&self) {
+        self.generation.set(self.generation.get() + 1);
+    }
+
     pub(crate) fn new(builders: impl IntoIterator<Item = (String, Builder)>) -> Self {
         Self {
             outputs: RefCell::default(),
             builders: builders.into_iter().collect(),
+            generation: Cell::default(),
         }
     }
 }
@@ -251,6 +261,29 @@ mod global_builtins {
 
         Ok(Value::attrs(attrs))
     }
+
+    /// The current generation, which advances with each evaluation and
+    /// after each build. Derivations that hash it, e.g. `io.dispatch`, are
+    /// distinct from those made before, so importing them runs them again
+    /// rather than hitting the import cache.
+    ///
+    /// Takes and ignores an argument, as Nix has no nullary functions. Pass
+    /// something local, e.g. the enclosing function's argument: snix
+    /// evaluates an expression without free variables once and shares it,
+    /// so `builtins.__currentGeneration null` would never advance.
+    #[builtin("__currentGeneration")]
+    #[expect(
+        clippy::unused_async,
+        unused_variables,
+        reason = "`#[builtins]` requires async builtins that take `co`"
+    )]
+    async fn builtin_current_generation(
+        state: Rc<Derivations>,
+        co: GenCo,
+        #[lazy] _argument: Value,
+    ) -> Result<Value, ErrorKind> {
+        Ok(Value::Integer(state.generation.get()))
+    }
 }
 
 #[builtins(state = "Rc<Derivations>")]
@@ -282,6 +315,7 @@ mod derivation_builtins {
             Some(run) => run(&co, inputs, passthru).await,
             None => Err(format!("Unknown builder {builder:?}")),
         };
+        state.advance();
 
         let fields = match result {
             Ok(value) if value.is_catchable() => return Ok(value),

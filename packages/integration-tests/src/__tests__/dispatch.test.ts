@@ -139,6 +139,28 @@ describe("dispatch", () => {
       });
     });
 
+    it("runs the same dispatch again when imported again", () => {
+      using view = render(nix`{
+        init = 0;
+        update = state: action: state + 1;
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button {
+            on.click = event:
+              let
+                first = import (dispatch "increment");
+                second = import (dispatch "increment");
+              in
+              if first.value == 1 && second.value == 2 then null else throw "not run twice";
+          })
+        ];
+      }`);
+
+      view.get("button").click();
+
+      expect(shown(view)).toBe(2);
+    });
+
     it("keeps earlier dispatches when a handler fails", () => {
       using view = render(nix`{
         init = 0;
