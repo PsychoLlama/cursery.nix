@@ -24,6 +24,7 @@
 let
   children = import ./children.nix;
   css = import ./css.nix;
+  event = import ./io/event.nix;
 
   check =
     app:
@@ -78,9 +79,9 @@ in
   # Calls an event handler, returning what to keep after its action, or
   # `null` if it ignored the event.
   handle =
-    kept: handler: event:
+    kept: handler: snapshot:
     let
-      action = handler event;
+      action = handler (event snapshot);
     in
     if action == null then
       null

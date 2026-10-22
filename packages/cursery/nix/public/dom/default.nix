@@ -19,6 +19,10 @@
 #
 #   html.button { on.click = event: { type = "increment"; }; } "+"
 #
+# Snapshots describe effects on the event too, run by importing them:
+#
+#   html.a { on.click = event: import (event.preventDefault { }); }
+#
 # Builders normalize children as they go (see `internal/children.nix`).
 
 let

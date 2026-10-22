@@ -24,6 +24,7 @@ describe("store", () => {
 
     expect(cursery.evaluate(nix`import ${app.path}/main.nix`)).toEqual([
       "dom",
+      "io",
       "style",
     ]);
   });

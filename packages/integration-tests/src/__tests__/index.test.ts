@@ -86,6 +86,7 @@ describe("evaluate", () => {
     it("resolves through the search path", () => {
       expect(cursery.evaluate(nix`builtins.attrNames (import <web>)`)).toEqual([
         "dom",
+        "io",
         "style",
       ]);
     });

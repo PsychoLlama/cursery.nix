@@ -182,7 +182,7 @@ mod tests {
             Session::new()
                 .evaluate("builtins.attrNames (import <web>)", &[], EvalMode::Strict)?
                 .to_string(),
-            r#"[ "dom" "style" ]"#
+            r#"[ "dom" "io" "style" ]"#
         );
         Ok(())
     }

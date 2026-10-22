@@ -1,11 +1,15 @@
 //! Side effects, as derivations. `derivation` describes an effect, and
 //! importing it (import from derivation) runs it:
 //!
-//!   import (derivation {
+//!   import (event.preventDefault { })
+//!
+//! Where `internal/io/event.nix` defines it as:
+//!
+//!   derivation {
 //!     name = "preventDefault";
 //!     builder = "builtin:preventDefault";
-//!     event = event.__id;
-//!   })
+//!     event = snapshot.__id;
+//!   }
 //!
 //! The import evaluates to `{ type = "success"; value; }`, or
 //! `{ type = "error"; error; }` if the effect failed.
@@ -155,7 +159,9 @@ mod global_builtins {
     use super::{Derivations, Digest, Inputs, Sha256, is_valid_name, output_path, update};
 
     /// Describes an effect, run by importing it. Attributes are coerced to
-    /// strings, as by Nix, and hashed into the output path.
+    /// strings, as by Nix, and hashed into the output path. Returns the
+    /// attributes with `type = "derivation"` and `outPath`, overriding any
+    /// given.
     #[builtin("derivation")]
     async fn builtin_derivation(
         state: Rc<Derivations>,

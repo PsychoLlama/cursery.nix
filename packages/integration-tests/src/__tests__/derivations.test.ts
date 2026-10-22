@@ -41,11 +41,7 @@ describe("derivations", () => {
   it("runs a derivation when imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: import (derivation {
-          name = "preventDefault";
-          builder = "builtin:preventDefault";
-          event = event.__id;
-        });
+        on.click = event: import (event.preventDefault { });
       }`),
     );
 
@@ -56,11 +52,7 @@ describe("derivations", () => {
   it("only describes the effect until imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: (derivation {
-          name = "preventDefault";
-          builder = "builtin:preventDefault";
-          event = event.__id;
-        }).type;
+        on.click = event: (event.preventDefault { }).type;
       }`),
     );
 
@@ -68,17 +60,32 @@ describe("derivations", () => {
     expect(logged(view)).toEqual(["derivation"]);
   });
 
-  it("identifies events by `__id`", () => {
+  it("hides the event's `__id`", () => {
     using view = render(
-      logger(nix`html.button { on.click = event: event.__id; }`),
+      logger(nix`html.button { on.click = event: event ? __id; }`),
     );
 
     view.get("button").click();
+
+    expect(logged(view)).toEqual([false]);
+  });
+
+  it("returns the attributes as a derivation", () => {
+    using view = render(
+      logger(nix`html.button {
+        on.click = event:
+          let
+            drv = derivation { name = "example"; builder = "none"; type = "other"; };
+          in
+          { inherit (drv) name builder type; };
+      }`),
+    );
+
     view.get("button").click();
 
-    const [first, second] = logged(view) as number[];
-    expect(first).toEqual(expect.any(Number));
-    expect(second).not.toBe(first);
+    expect(logged(view)).toEqual([
+      { name: "example", builder: "none", type: "derivation" },
+    ]);
   });
 
   it("hashes attributes into the output path", () => {
@@ -112,11 +119,7 @@ describe("derivations", () => {
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: (derivation {
-          name = "preventDefault";
-          builder = "builtin:preventDefault";
-          event = event.__id;
-        }).outPath;
+        on.click = event: (event.preventDefault { }).outPath;
       }`),
     );
 
@@ -146,23 +149,17 @@ describe("derivations", () => {
 
   it("fails builders on events that finished dispatching", () => {
     using view = render(nix`{
-      init = { event = null; result = null; };
+      init = { effect = null; result = null; };
       update = state: action: state // action;
       render = state: [
         (html.pre (builtins.toJSON state.result))
         (html.button {
           id = "keep";
-          on.click = event: { event = event.__id; };
+          on.click = event: { effect = event.preventDefault { }; };
         })
         (html.button {
           id = "run";
-          on.click = event: {
-            result = import (derivation {
-              name = "preventDefault";
-              builder = "builtin:preventDefault";
-              inherit (state) event;
-            });
-          };
+          on.click = event: { result = import state.effect; };
         })
       ];
     }`);
@@ -184,7 +181,7 @@ describe("derivations", () => {
         on.click = event: map (attrs: import (derivation ({
           name = "preventDefault";
           builder = "builtin:preventDefault";
-        } // attrs))) [ { } { event = "nope"; } { event = event.__id + 1000; } ];
+        } // attrs))) [ { } { event = "nope"; } { event = 1000000; } ];
       }`),
     );
 
