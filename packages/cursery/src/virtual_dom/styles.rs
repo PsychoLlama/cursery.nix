@@ -1,31 +1,40 @@
-//! The CSS of styles in a tree (see `<web/style>`), loaded into a `<style>`
-//! in the document's `<head>`.
+//! The CSS of styles in a tree (see `<web/style>`), loaded into a constructed
+//! stylesheet adopted by the container's root: its shadow root, or else its
+//! document, even while the container is detached.
 //!
 //! Each class is loaded once and never removed. Names are hashes of their
 //! rules, so an edited style is a new class, and the old one is only a rule
 //! nothing matches.
 
-use std::{cell::RefCell, collections::HashSet};
+use std::{cell::RefCell, collections::HashMap};
 
+use js_sys::{Array, Reflect};
 use snix_eval::{NixList, NixString, Value};
-use web_sys::{Document, Element};
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{CssStyleSheet, Document, Element};
 
 use super::node::{Node, utf8};
 use crate::error::Error;
 
 thread_local! {
-    static SHEET: RefCell<Option<Sheet>> = const { RefCell::new(None) };
+    static STYLES: RefCell<Option<Styles>> = const { RefCell::new(None) };
 }
 
-struct Sheet {
-    element: Element,
+struct Styles {
+    /// Constructed sheets can only be adopted in the document they belong to.
+    document: Document,
+    sheet: CssStyleSheet,
 
-    /// Classes already loaded.
-    names: HashSet<NixString>,
+    /// The CSS of each class loaded so far.
+    loaded: HashMap<NixString, NixString>,
 }
 
 /// Loads the CSS of every style in `children`, rendered into `container`,
 /// that isn't loaded already.
+///
+/// # Errors
+///
+/// Fails if different styles share a name, or the CSS doesn't parse.
 pub(crate) fn load(container: &Element, children: &Value) -> Result<(), Error> {
     let mut styles = Vec::new();
     collect(&children.to_list()?, &mut styles)?;
@@ -37,44 +46,62 @@ pub(crate) fn load(container: &Element, children: &Value) -> Result<(), Error> {
         .owner_document()
         .ok_or_else(|| Error::Js("Container has no document".to_owned()))?;
 
-    SHEET.with_borrow_mut(|sheet| {
-        // Starts over if the sheet was removed, or belongs to another document.
-        let current = sheet.take().filter(|sheet| {
-            sheet.element.is_connected()
-                && sheet.element.owner_document().as_ref() == Some(&document)
-        });
-
-        let sheet = sheet.insert(match current {
-            Some(sheet) => sheet,
-            None => Sheet::new(&document)?,
-        });
+    STYLES.with_borrow_mut(|current| {
+        let state = match current.take() {
+            Some(existing) if existing.document == document => current.insert(existing),
+            _ => current.insert(Styles {
+                document,
+                sheet: CssStyleSheet::new()?,
+                loaded: HashMap::new(),
+            }),
+        };
 
         for (name, css) in styles {
-            if sheet.names.insert(name) {
-                let text = document.create_text_node(&format!("{}\n", utf8(&css)?));
-                sheet.element.append_child(&text)?;
+            match state.loaded.get(&name) {
+                Some(loaded) if *loaded == css => {}
+                Some(_) => return Err(Error::StyleCollision(utf8(&name)?.to_owned())),
+                None => {
+                    let class = utf8(&name)?;
+                    let index = state.sheet.css_rules()?.length();
+                    state
+                        .sheet
+                        .insert_rule_with_index(utf8(&css)?, index)
+                        .map_err(|error| {
+                            Error::InvalidStyle(class.to_owned(), Box::new(error.into()))
+                        })?;
+                    state.loaded.insert(name, css);
+                }
             }
         }
 
-        Ok(())
+        let root = container.get_root_node();
+        if Reflect::has(&root, &adopted())? {
+            adopt(&root, &state.sheet)
+        } else {
+            adopt(&state.document, &state.sheet)
+        }
     })
 }
 
-impl Sheet {
-    fn new(document: &Document) -> Result<Self, Error> {
-        let head = document
-            .head()
-            .ok_or_else(|| Error::Js("Document has no <head>".to_owned()))?;
+/// Adds `sheet` to the `adoptedStyleSheets` of `root`, a document or shadow
+/// root, unless it's there already. Assigned rather than pushed to: older
+/// browsers froze the array.
+fn adopt(root: &web_sys::Node, sheet: &CssStyleSheet) -> Result<(), Error> {
+    let sheets: Array = Reflect::get(root, &adopted())?
+        .dyn_into()
+        .map_err(|_| Error::Js("adoptedStyleSheets isn't supported".to_owned()))?;
 
-        let element = document.create_element("style")?;
-        element.set_attribute("data-cursery", "")?;
-        head.append_child(&element)?;
-
-        Ok(Self {
-            element,
-            names: HashSet::new(),
-        })
+    if !sheets.includes(sheet, 0) {
+        let sheets = sheets.slice(0, sheets.length());
+        sheets.push(sheet);
+        Reflect::set(root, &adopted(), &sheets)?;
     }
+
+    Ok(())
+}
+
+fn adopted() -> JsValue {
+    JsValue::from_str("adoptedStyleSheets")
 }
 
 /// Styles in `children`, in tree order.

@@ -26,11 +26,11 @@ function render(code: string) {
   return mount(app.path);
 }
 
-/** Every rule loaded for styles, in order. */
-function loaded(): string[] {
-  const sheet = document.head.querySelector("style[data-cursery]");
-
-  return (sheet?.textContent ?? "").split("\n").filter(Boolean);
+/** Every rule adopted by `root`, in order. */
+function loaded(root: Document | ShadowRoot = document): string[] {
+  return root.adoptedStyleSheets.flatMap((sheet) =>
+    Array.from(sheet.cssRules, (rule) => rule.cssText),
+  );
 }
 
 describe("css", () => {
@@ -149,13 +149,60 @@ describe("styles", () => {
     expect(loaded()).toContainEqual(expect.stringMatching(/color: plum;/));
   });
 
-  it("loads again into a new sheet if the old one is removed", () => {
+  it("adopts the sheet again if it's removed", () => {
     using _ = render(nix`html.p { class = css { color = "navy"; }; }`);
-    document.head.querySelector("style[data-cursery]")!.remove();
+    document.adoptedStyleSheets = [];
 
     using _again = render(nix`html.p { class = css { color = "navy"; }; }`);
 
     expect(loaded()).toContainEqual(expect.stringMatching(/color: navy;/));
+  });
+
+  it("keeps other adopted sheets", () => {
+    const other = new CSSStyleSheet();
+    document.adoptedStyleSheets = [other];
+
+    using _ = render(nix`html.p { class = css { color = "gold"; }; }`);
+
+    expect(document.adoptedStyleSheets[0]).toBe(other);
+    expect(loaded()).toContainEqual(expect.stringMatching(/color: gold;/));
+  });
+
+  it("adopts the sheet in shadow roots", () => {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    const container = root.appendChild(document.createElement("div"));
+    using app = load({
+      "default.nix": nix`let
+        inherit (import <web/dom>) html;
+        inherit (import <web/style>) css;
+      in {
+        render = state: html.p { class = css { color = "pink"; }; };
+      }`,
+    });
+
+    using _ = mount(app.path, container);
+
+    expect(loaded(root)).toContainEqual(expect.stringMatching(/color: pink;/));
+  });
+
+  it("rejects different styles with the same name", () => {
+    const style = (color: string) =>
+      nix`{ _type = "style"; name = "s-same"; css = ".s-same { color: ${color}; }"; }`;
+
+    using _ = render(nix`html.p { class = ${style("red")}; }`);
+
+    expect(() => render(nix`html.p { class = ${style("blue")}; }`)).toThrow(
+      /Different styles hash to the same class name "s-same"/,
+    );
+  });
+
+  it("rejects CSS that doesn't parse", () => {
+    expect(() =>
+      render(
+        nix`html.p { class = { _type = "style"; name = "s-bad"; css = "}"; }; }`,
+      ),
+    ).toThrow(/Invalid CSS for class "s-bad": SyntaxError/);
   });
 
   it("drops styles replaced by a later `class`", () => {

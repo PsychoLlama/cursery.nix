@@ -43,6 +43,12 @@ pub(crate) enum Error {
     #[error("Invalid node: {0}")]
     InvalidNodeType(#[from] snix_eval::ErrorKind),
 
+    #[error("Invalid CSS for class {0:?}: {1}")]
+    InvalidStyle(String, Box<Error>),
+
+    #[error("Different styles hash to the same class name {0:?}")]
+    StyleCollision(String),
+
     #[error("{0}")]
     Js(String),
 }

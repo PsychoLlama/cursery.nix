@@ -5,6 +5,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     include: ["src/**/__tests__/*.test.ts"],
+    setupFiles: ["src/setup.ts"],
     server: {
       deps: {
         // Load the wasm bindings natively. Under jsdom, Vite rewrites
