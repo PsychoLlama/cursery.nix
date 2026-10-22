@@ -15,7 +15,11 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       // One page per example.
-      input: [page("index.html"), page("hello-world/index.html")],
+      input: [
+        page("index.html"),
+        page("hello-world/index.html"),
+        page("todomvc/index.html"),
+      ],
     },
   },
 });
