@@ -50,9 +50,7 @@ let
 
     cancel = state: _: state // { editing = null; };
 
-    # Saves the edit, if it's still editing: the field saves when it loses
-    # focus, which it does when Enter or Escape removes it. Saving no text
-    # deletes the todo.
+    # Saves the edit. Saving no text deletes the todo.
     save =
       state:
       { id, text }:
@@ -61,9 +59,7 @@ let
           editing = null;
         };
       in
-      if state.editing != id then
-        state
-      else if trim text == "" then
+      if trim text == "" then
         handlers.destroy done id
       else
         updateTodo done id (todo: todo // { text = trim text; });
