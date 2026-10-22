@@ -16,9 +16,6 @@ use snix_eval::{EvalIO, EvalMode, Evaluation, EvaluationBuilder, GlobalsMap, Sou
 
 use crate::{error::Error, memfs::MemoryFilesystem, store};
 
-/// Top-level variables in scope during an evaluation.
-pub(crate) type Variables = FxHashMap<SmolStr, Value>;
-
 #[derive(Debug)]
 pub(crate) struct Session {
     /// A snapshot: later loads and unloads don't affect the session.
@@ -56,13 +53,18 @@ impl Session {
     pub(crate) fn evaluate(
         &self,
         code: &str,
-        variables: Option<&Variables>,
+        variables: &[(&'static str, Value)],
         mode: EvalMode,
     ) -> Result<Value, Error> {
+        let variables: FxHashMap<SmolStr, Value> = variables
+            .iter()
+            .map(|(name, value)| (SmolStr::new_static(name), value.clone()))
+            .collect();
+
         let result = builder(&self.filesystem, &self.bundled_path)
             .with_globals(Rc::clone(&self.globals))
             .with_source_map(self.source_map.clone())
-            .env(variables)
+            .env(Some(&variables))
             .mode(mode)
             .build()
             // Without a location, snix falls back to `current_dir()`, which is

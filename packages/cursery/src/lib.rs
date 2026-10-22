@@ -15,17 +15,11 @@ use std::{
 };
 
 use js_sys::{Array, Object};
-use smol_str::SmolStr;
-use snix_eval::{EvalMode, Value};
+use snix_eval::{EvalMode, NixAttrs, Value};
 use wasm_bindgen::prelude::*;
 use web_sys::Element;
 
-use crate::{
-    error::Error,
-    memfs::Files,
-    session::{Session, Variables},
-    to_js::to_js,
-};
+use crate::{error::Error, memfs::Files, mounts::Mount, session::Session, to_js::to_js};
 
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
@@ -85,7 +79,7 @@ pub fn unload(path: &str) -> Result<(), JsError> {
 pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
     Ok(to_js(&Session::new().evaluate(
         code,
-        None,
+        &[],
         EvalMode::Strict,
     )?)?)
 }
@@ -93,49 +87,70 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// Render an app into `container`. `path` is its `default.nix`, or a
 /// directory containing one, e.g. `${path}/app` for a path returned by `load`.
 ///
-/// Apps are attrsets of optional hooks. `render` takes the state (for now,
-/// always `{ }`) and returns children, like any element accepts:
+/// Apps are attrsets of optional hooks. `render` takes the state and returns
+/// children, like any element accepts. State starts as `init`, or `{ }`
+/// without it, and `update` returns the next state given an action. `init`
+/// and `update` come as a pair.
 ///
 /// ```nix
 /// let inherit (import <web/dom>) html; in
 /// {
-///   render = state: html.h1 "Hello";
+///   init = { name = "world"; };
+///   update = state: action: state;
+///   render = state: html.h1 "Hello, ${state.name}";
 /// }
 /// ```
 ///
 /// The first mount replaces the container's contents. Mounting again, e.g.
 /// with a hot-reloaded `path`, updates the app in place: the DOM is patched
-/// to match the new render.
+/// to match the new render, and state carries over, ignoring the new `init`.
 ///
 /// # Errors
 ///
-/// Throws if the app fails to evaluate or renders an invalid tree. The
-/// container is left untouched.
+/// Throws if the app is invalid, fails to evaluate, or renders an invalid
+/// tree. The container and state are left untouched.
 #[wasm_bindgen]
 pub fn mount(container: &Element, path: &str) -> Result<(), JsError> {
     let session = Session::new();
+    let previous = mounts::get(container);
 
-    // The app is evaluated once, leaving a view of it to call with state.
-    let view = session.evaluate(
+    // The app is evaluated once, leaving a renderer to call.
+    let renderer = session.evaluate(
         "import renderer (import app)",
-        Some(&Variables::from_iter([
+        &[
             (
-                SmolStr::new_static("renderer"),
+                "renderer",
                 nix_path(session.bundled_path().join("internal/render.nix")),
             ),
-            (SmolStr::new_static("app"), nix_path(PathBuf::from(path))),
-        ])),
+            ("app", nix_path(PathBuf::from(path))),
+        ],
         EvalMode::Lazy,
     )?;
 
-    let children = session.evaluate(
-        "view { }",
-        Some(&Variables::from_iter([(SmolStr::new_static("view"), view)])),
-        EvalMode::Strict,
+    let kept = previous
+        .as_ref()
+        .map_or(Value::Null, |mount| mount.kept.clone());
+    let result = session
+        .evaluate(
+            "renderer.mount kept",
+            &[("renderer", renderer), ("kept", kept)],
+            EvalMode::Strict,
+        )?
+        .to_attrs()
+        .map_err(|error| Error::InvalidRenderer(error.to_string()))?;
+
+    let mount = Mount {
+        tree: field(&result, "children")?,
+        kept: field(&result, "kept")?,
+    };
+
+    virtual_dom::render(
+        container,
+        previous.as_ref().map(|mount| &mount.tree),
+        &mount.tree,
     )?;
 
-    virtual_dom::render(container, mounts::tree(container).as_ref(), &children)?;
-    mounts::insert(container, children);
+    mounts::insert(container, mount);
     Ok(())
 }
 
@@ -149,6 +164,14 @@ pub fn unmount(container: &Element) -> Result<(), JsError> {
     mounts::remove(container)?;
     container.replace_children_with_node_0();
     Ok(())
+}
+
+/// Selects `name` from what the renderer returned.
+fn field(attrs: &NixAttrs, name: &'static str) -> Result<Value, Error> {
+    attrs
+        .select(name)
+        .cloned()
+        .ok_or_else(|| Error::InvalidRenderer(format!("missing {name:?}")))
 }
 
 fn nix_path(path: PathBuf) -> Value {
@@ -198,7 +221,7 @@ mod tests {
     fn imports_bundled_libraries() -> Result<(), Error> {
         assert_eq!(
             Session::new()
-                .evaluate("builtins.attrNames (import <web>)", None, EvalMode::Strict)?
+                .evaluate("builtins.attrNames (import <web>)", &[], EvalMode::Strict)?
                 .to_string(),
             r#"[ "dom" ]"#
         );

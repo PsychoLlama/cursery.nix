@@ -214,6 +214,103 @@ describe("mount", () => {
   });
 });
 
+describe("state", () => {
+  /** An app rendering `init` as JSON. */
+  const counter = (init: string) => nix`{
+    init = ${init};
+    update = state: action: state;
+    render = state: builtins.toJSON state;
+  }`;
+
+  it("renders `init`", () => {
+    using view = render(counter(nix`{ count = 1; }`));
+
+    expect(view.container.textContent).toBe('{"count":1}');
+  });
+
+  it("evaluates state strictly", () => {
+    expect(() =>
+      render(nix`{
+        init = { unused = throw "boom"; };
+        update = state: action: state;
+        render = state: "ignores state";
+      }`),
+    ).toThrow(/boom/);
+  });
+
+  it("requires `init` and `update` together", () => {
+    expect(() => render(nix`{ init = { }; }`)).toThrow(/must define both/);
+    expect(() => render(nix`{ update = state: action: state; }`)).toThrow(
+      /must define both/,
+    );
+  });
+
+  it("validates the app", () => {
+    expect(() => render(nix`42`)).toThrow(/Invalid app of type int/);
+    expect(() => render(nix`{ init = { }; update = { }; }`)).toThrow(
+      /Invalid `update` of type set/,
+    );
+    expect(() => render(nix`{ render = "hello"; }`)).toThrow(
+      /Invalid `render` of type string/,
+    );
+  });
+
+  it("keeps state across mounts", () => {
+    using view = render(counter(nix`{ count = 1; }`));
+    using next = app(counter(nix`{ count = 2; }`));
+
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.textContent).toBe('{"count":1}');
+  });
+
+  it("uses `init` when the previous app had no state", () => {
+    using view = render(nix`{ render = state: builtins.toJSON state; }`);
+    using next = app(counter(nix`{ count = 1; }`));
+
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.textContent).toBe('{"count":1}');
+  });
+
+  it("drops state when the app no longer has any", () => {
+    using view = render(counter(nix`{ count = 1; }`));
+    using stateless = app(nix`{ render = state: builtins.toJSON state; }`);
+    using stateful = app(counter(nix`{ count = 2; }`));
+
+    cursery.mount(view.container, stateless.path);
+    expect(view.container.textContent).toBe("{}");
+
+    cursery.mount(view.container, stateful.path);
+    expect(view.container.textContent).toBe('{"count":2}');
+  });
+
+  it("keeps state through failed mounts", () => {
+    using view = render(counter(nix`{ count = 1; }`));
+    using broken = app(nix`{ init = { }; }`);
+    using next = app(counter(nix`{ count = 2; }`));
+
+    expect(() => cursery.mount(view.container, broken.path)).toThrow(
+      /must define both/,
+    );
+    cursery.mount(view.container, next.path);
+
+    expect(view.container.textContent).toBe('{"count":1}');
+  });
+
+  it("forgets state on unmount", () => {
+    const container = document.createElement("div");
+    using first = app(counter(nix`{ count = 1; }`));
+    using second = app(counter(nix`{ count = 2; }`));
+    cursery.mount(container, first.path);
+    cursery.unmount(container);
+
+    using _ = mount(second.path, container);
+
+    expect(container.textContent).toBe('{"count":2}');
+  });
+});
+
 describe("unmount", () => {
   it("clears the container", () => {
     using files = app(nix`{ render = state: "hello"; }`);

@@ -25,6 +25,9 @@ pub(crate) enum Error {
     #[error("Nothing is mounted in the container")]
     NotMounted,
 
+    #[error("Invalid renderer result: {0}")]
+    InvalidRenderer(String),
+
     #[error("Cannot convert a {0} to JS")]
     Unconvertible(&'static str),
 

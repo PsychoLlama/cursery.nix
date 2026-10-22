@@ -1,7 +1,7 @@
 //! Apps mounted into containers, keyed by container.
 //!
 //! Mounting into an occupied container updates the app in place, e.g. after
-//! a hot reload, patching the DOM rather than replacing it.
+//! a hot reload, patching the DOM rather than replacing it and keeping state.
 
 use std::cell::RefCell;
 
@@ -12,39 +12,34 @@ use crate::error::Error;
 
 thread_local! {
     /// wasm is single-threaded, so this is effectively a global.
-    static MOUNTS: RefCell<Vec<Mount>> = const { RefCell::new(Vec::new()) };
+    static MOUNTS: RefCell<Vec<(Element, Mount)>> = const { RefCell::new(Vec::new()) };
 }
 
-#[derive(Debug)]
-struct Mount {
-    container: Element,
-
+#[derive(Debug, Clone)]
+pub(crate) struct Mount {
     /// The children last rendered into the container.
-    tree: Value,
+    pub(crate) tree: Value,
+
+    /// What the renderer kept for the next mount, e.g. state.
+    pub(crate) kept: Value,
 }
 
-/// The children last rendered into `container`, if anything is mounted.
-pub(crate) fn tree(container: &Element) -> Option<Value> {
+/// The app mounted into `container`, if any.
+pub(crate) fn get(container: &Element) -> Option<Mount> {
     MOUNTS.with_borrow(|mounts| {
         mounts
             .iter()
-            .find(|mount| &mount.container == container)
-            .map(|mount| mount.tree.clone())
+            .find(|(mounted, _)| mounted == container)
+            .map(|(_, mount)| mount.clone())
     })
 }
 
-/// Records `tree` as rendered into `container`.
-pub(crate) fn insert(container: &Element, tree: Value) {
+/// Records `mount` as the app mounted into `container`.
+pub(crate) fn insert(container: &Element, mount: Mount) {
     MOUNTS.with_borrow_mut(|mounts| {
-        match mounts
-            .iter_mut()
-            .find(|mount| &mount.container == container)
-        {
-            Some(mount) => mount.tree = tree,
-            None => mounts.push(Mount {
-                container: container.clone(),
-                tree,
-            }),
+        match mounts.iter_mut().find(|(mounted, _)| mounted == container) {
+            Some((_, existing)) => *existing = mount,
+            None => mounts.push((container.clone(), mount)),
         }
     });
 }
@@ -58,7 +53,7 @@ pub(crate) fn remove(container: &Element) -> Result<(), Error> {
     MOUNTS.with_borrow_mut(|mounts| {
         let index = mounts
             .iter()
-            .position(|mount| &mount.container == container)
+            .position(|(mounted, _)| mounted == container)
             .ok_or(Error::NotMounted)?;
 
         mounts.swap_remove(index);
