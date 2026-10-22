@@ -1,7 +1,7 @@
 let
   inherit (import <web/dom>) html;
   inherit (import <web/style>) css;
-  inherit (import ./state.nix) init update;
+  inherit (import ./state.nix) init update visible;
 
   header = import ./components/header.nix;
   todoList = import ./components/todo-list.nix;
@@ -40,8 +40,11 @@ in
         else
           [
             (toggleAll { inherit (state) todos; })
-            (todoList { inherit (state) todos editing; })
-            (footer { inherit (state) todos; })
+            (todoList {
+              inherit (state) editing;
+              todos = visible state;
+            })
+            (footer { inherit (state) todos filter; })
           ]
       )
     ])

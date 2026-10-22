@@ -64,6 +64,8 @@ let
       else
         updateTodo done id (todo: todo // { text = trim text; });
 
+    filter = state: filter: state // { inherit filter; };
+
     clearCompleted =
       state: _: state // { todos = builtins.filter (todo: !todo.completed) state.todos; };
   };
@@ -74,7 +76,23 @@ in
     todos = [ ];
     nextId = 0;
     editing = null;
+
+    # Which todos show: "all", "active", or "completed".
+    filter = "all";
   };
+
+  # The todos the filter shows.
+  visible =
+    state:
+    builtins.filter (
+      todo:
+      if state.filter == "active" then
+        !todo.completed
+      else if state.filter == "completed" then
+        todo.completed
+      else
+        true
+    ) state.todos;
 
   update =
     state: action:
