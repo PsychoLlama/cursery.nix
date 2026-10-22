@@ -9,6 +9,11 @@ let
     in
     if matched == null then "" else builtins.head matched;
 
+  # Applies `f` to the todo with `id`.
+  updateTodo =
+    state: id: f:
+    state // { todos = map (todo: if todo.id == id then f todo else todo) state.todos; };
+
   # Each takes the state and the action's payload, returning the next state.
   handlers = {
     # Ids identify todos in actions, and key their elements.
@@ -31,6 +36,10 @@ let
           ];
           nextId = state.nextId + 1;
         };
+
+    toggle = state: id: updateTodo state id (todo: todo // { completed = !todo.completed; });
+
+    destroy = state: id: state // { todos = builtins.filter (todo: todo.id != id) state.todos; };
   };
 in
 
