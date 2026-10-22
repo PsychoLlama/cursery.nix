@@ -194,6 +194,40 @@ describe("events", () => {
     ).toThrow(/Invalid `on` of type int/);
   });
 
+  it("ignores events fired while rendering", () => {
+    // Clicks `#other` when inserted, mid-render, like a focused element
+    // blurring as it's removed.
+    customElements.define(
+      "click-on-connect",
+      class extends HTMLElement {
+        connectedCallback() {
+          this.parentElement!.querySelector<HTMLElement>("#other")!.click();
+        }
+      },
+    );
+
+    using view = render(nix`{
+      init = { shown = false; log = [ ]; };
+      update = state: action:
+        if action.type == "show" then state // { shown = true; }
+        else state // { log = state.log ++ [ action.type ]; };
+      render = state: [
+        (html.pre (builtins.toJSON state.log))
+        (html.button { id = "show"; on.click = event: dispatch "show"; })
+        (html.button { id = "other"; on.click = event: dispatch "clicked"; })
+        (if state.shown then (import <web/dom>).element "click-on-connect" else null)
+      ];
+    }`);
+
+    // Custom elements only connect in the document.
+    document.body.append(view.container);
+    using _detach = { [Symbol.dispose]: () => view.container.remove() };
+    view.get("#show").click();
+
+    expect(view.get("click-on-connect")).not.toBeNull();
+    expect(logged(view)).toEqual([]);
+  });
+
   it("uses handlers from the latest mount", () => {
     using view = render(
       logger(nix`html.button { on.click = event: log "old"; }`),

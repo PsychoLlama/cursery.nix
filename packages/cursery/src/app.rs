@@ -1,6 +1,6 @@
 //! Apps mounted into containers: rendering, and handling their events.
 
-use std::{iter, path::PathBuf, rc::Rc};
+use std::{cell::Cell, iter, path::PathBuf, rc::Rc};
 
 use snix_eval::{
     EvalMode, NixAttrs, Value,
@@ -19,6 +19,11 @@ use crate::{
         styles::{self, Globals},
     },
 };
+
+thread_local! {
+    /// Whether a commit is patching the DOM. See [`dispatch`].
+    static COMMITTING: Cell<bool> = const { Cell::new(false) };
+}
 
 /// See the `mount` export.
 pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
@@ -83,7 +88,15 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
 /// handler in turn and running the effects it returns, in order.
 /// `builtin:dispatch` renders as it goes: if an effect fails, earlier ones
 /// stay rendered and later ones don't run.
+///
+/// Events fired while committing are ignored, e.g. `blur` from removing a
+/// focused element. They're artifacts of patching, not things people did,
+/// and handling them would patch the DOM underneath the commit.
 pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> {
+    if COMMITTING.get() {
+        return Ok(());
+    }
+
     let Some(mount) = mounts::get(container) else {
         return Ok(());
     };
@@ -217,12 +230,29 @@ async fn action(co: &GenCo, inputs: Inputs, passthru: Value) -> Result<Value, St
 
 /// Renders `mount` into `container`, patching from `previous`, and records it.
 fn commit(container: &Element, previous: Option<&Mount>, mount: Mount) -> Result<(), Error> {
+    let _committing = Committing::start();
     mount.listeners.listen(handlers::types(&mount.tree)?)?;
     styles::load(container, &mount.tree)?;
     virtual_dom::render(container, previous.map(|mount| &mount.tree), &mount.tree)?;
 
     mounts::insert(container, mount);
     Ok(())
+}
+
+/// A commit patching the DOM, until dropped.
+struct Committing;
+
+impl Committing {
+    fn start() -> Self {
+        COMMITTING.set(true);
+        Self
+    }
+}
+
+impl Drop for Committing {
+    fn drop(&mut self) {
+        COMMITTING.set(false);
+    }
 }
 
 /// Selects `name` from what the renderer returned.
