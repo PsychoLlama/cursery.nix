@@ -68,8 +68,8 @@ pub(crate) enum Error {
 }
 
 impl Error {
-    /// The message alone, without the source excerpt. Messages from `throw`
-    /// are as thrown, so rethrowing one doesn't nest it.
+    /// The message alone, without the source excerpt, e.g. for `io.catch`.
+    /// Messages from `throw` are as thrown.
     pub(crate) fn message(&self) -> String {
         match self {
             Self::Eval(error) => match &error.kind {

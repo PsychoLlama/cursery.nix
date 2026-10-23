@@ -113,7 +113,7 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
         return Ok(());
     }
 
-    // Builders act on the event only while it dispatches.
+    // Effects act on the event only while it dispatches.
     let dispatch = mount.session.dispatching().start(event);
     let event = events::snapshot(event, &dispatch)?;
     for handler in handlers {
@@ -154,8 +154,6 @@ fn run(container: &Element, mount: &Mount, effect: Value) -> Result<(), Error> {
             Ok(attrs) => {
                 if let Some(effect) = attrs.select("effect") {
                     effects::run(container, mount, effect)
-                } else if let Some(path) = attrs.select("derivation") {
-                    evaluate(mount, "effects.run path", &[("path", path.clone())])
                 } else if let Some(source) = attrs.select("source") {
                     pending.push(match attrs.select("catch") {
                         Some(catch) => Pending::Catch(catch.clone()),
@@ -164,7 +162,11 @@ fn run(container: &Element, mount: &Mount, effect: Value) -> Result<(), Error> {
                     current = step(mount, "effects.step value", &[("value", source.clone())]);
                     continue;
                 } else {
-                    evaluate(mount, "value", &[("value", select(&attrs, "value")?)])
+                    mount.session.evaluate(
+                        "value",
+                        &[("value", select(&attrs, "value")?)],
+                        EvalMode::Strict,
+                    )
                 }
             }
         };
@@ -203,16 +205,9 @@ enum Pending {
     Catch(Value),
 }
 
-/// Strictly evaluates `code` with `effects` and `bindings` in scope.
-fn evaluate(mount: &Mount, code: &str, bindings: &[(&'static str, Value)]) -> Result<Value, Error> {
-    let bindings: Vec<_> = iter::once(("effects", mount.effects.clone()))
-        .chain(bindings.iter().cloned())
-        .collect();
-    mount.session.evaluate(code, &bindings, EvalMode::Strict)
-}
-
-/// Evaluates a call to `effects.step`, as for [`evaluate`] but lazily: what
-/// it steps through, e.g. an output, is only forced as needed.
+/// Lazily evaluates a call to `effects.step`, with `effects` and `bindings`
+/// in scope: what it steps through, e.g. an output, is only forced as
+/// needed.
 fn step(mount: &Mount, code: &str, bindings: &[(&'static str, Value)]) -> Result<NixAttrs, Error> {
     let bindings: Vec<_> = iter::once(("effects", mount.effects.clone()))
         .chain(bindings.iter().cloned())

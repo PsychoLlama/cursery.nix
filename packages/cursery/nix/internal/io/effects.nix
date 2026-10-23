@@ -2,12 +2,10 @@
 # through what handlers return (see `run` in `app.rs`).
 #
 # Effects describe something for Rust to do (see `effects.rs`), by `kind`,
-# with `inputs`. Some are still derivations (see `derivations.rs`), run by
-# importing them.
+# with `inputs`.
 
 let
-  isDerivation = value: builtins.isAttrs value && value.type or null == "derivation";
-  isEffect = value: builtins.isAttrs value && (value._type or null == "effect" || isDerivation value);
+  isEffect = value: builtins.isAttrs value && value._type or null == "effect";
   isIo = value: builtins.isAttrs value && value._type or null == "io";
 
   # Checks what a handler returned: an effect, an `io.map` chain, or null.
@@ -37,8 +35,6 @@ in
   #
   # - `{ effect; }`: Rust runs the effect, deep-forced, then the output is
   #   the value.
-  # - `{ derivation; }`: `run` the derivation's output path, then the output
-  #   is the value.
   # - `{ source; next; }`: step through `source`, then call `next` with its
   #   output and step through the result. Failures skip `next`.
   # - `{ source; catch; }`: step through `source`. If it fails, call `catch`
@@ -46,9 +42,7 @@ in
   # - `{ value; }`: nothing. `value` is the output.
   step =
     value:
-    if isDerivation value then
-      { derivation = value.outPath; }
-    else if isEffect value then
+    if isEffect value then
       builtins.deepSeq value { effect = value; }
     else if isIo value && value ? catch then
       { inherit (value) source catch; }
@@ -56,8 +50,4 @@ in
       { inherit (value) source next; }
     else
       { inherit value; };
-
-  # Runs an effect, given its output path, returning its output. A failed
-  # effect throws.
-  run = path: import path;
 }

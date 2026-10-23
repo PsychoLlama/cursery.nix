@@ -84,7 +84,7 @@ impl Drop for Listeners {
     }
 }
 
-/// Events while they dispatch, by `__id`, so builders can act on them.
+/// Events while they dispatch, by `__id`, so effects can act on them.
 #[derive(Debug, Default)]
 pub(crate) struct Dispatching {
     events: RefCell<FxHashMap<i64, Event>>,
@@ -143,7 +143,7 @@ impl Drop for Dispatch {
 
 /// A plain-data copy of `event` for handlers: its strings, numbers and
 /// booleans (`type`, `key`, `shiftKey`, ...), and `target` with the fields
-/// form controls need (`value`, `checked`). `__id` identifies it to builders
+/// form controls need (`value`, `checked`). `__id` identifies it to effects
 /// while it's `dispatch`ing.
 pub(crate) fn snapshot(event: &Event, dispatch: &Dispatch) -> Result<Value, Error> {
     let mut fields = fields(event, event)?;

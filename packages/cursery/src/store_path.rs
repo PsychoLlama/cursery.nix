@@ -36,14 +36,6 @@ pub(crate) fn store_path(files: &Files) -> PathBuf {
     fingerprinted(&fingerprint, NAME)
 }
 
-/// The store path for an output named `name` of a derivation whose SHA-256
-/// is `hash` (in hex), e.g. `/nix/store/<hash>-<name>`.
-pub(crate) fn output_path(hash: &str, name: &str) -> PathBuf {
-    let fingerprint = format!("output:out:sha256:{hash}:{}:{name}", store_dir().display());
-
-    fingerprinted(&fingerprint, name)
-}
-
 fn fingerprinted(fingerprint: &str, name: &str) -> PathBuf {
     let digest = Sha256::digest(fingerprint);
 

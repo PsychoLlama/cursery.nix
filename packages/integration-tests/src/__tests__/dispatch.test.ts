@@ -198,11 +198,11 @@ describe("dispatch", () => {
     it("throws errors of returned effects", () => {
       using view = render(nix`{
         render = state: html.button {
-          on.click = event: derivation { name = "missing"; builder = "builtin:missing"; };
+          on.click = event: io.runCommand "fail" { } "throw new Error('nope')";
         };
       }`);
 
-      expect(errors(view)).toEqual([expect.stringMatching(/Unknown builder/)]);
+      expect(errors(view)).toEqual([expect.stringMatching(/Error: nope/)]);
     });
 
     it("throws errors from the payload", () => {

@@ -164,7 +164,7 @@ describe("map", () => {
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
     });
 
-    it("reports failures as they were, without nesting", () => {
+    it("reports failures with their messages", () => {
       using view = render(nix`io.map
         (output: output)
         (io.map (output: output) (io.runCommand "fail" { } "throw new Error('nope')"))`);
