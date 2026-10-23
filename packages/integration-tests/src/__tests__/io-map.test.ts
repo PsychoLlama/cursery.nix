@@ -66,7 +66,7 @@ describe("map", () => {
     expect(
       evaluate(nix`let chain = io.map (out: null) (io.dispatch "a"); in {
         inherit (chain) _type;
-        source = chain.source.action;
+        source = chain.source.inputs.type;
         next = builtins.isFunction chain.next;
       }`),
     ).toEqual({ _type: "io", source: "a", next: true });

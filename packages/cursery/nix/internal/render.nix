@@ -85,8 +85,8 @@ in
   # to run (see `io/effects.nix`).
   handle = handler: snapshot: effects.check (handler (event snapshot));
 
-  # Applies an action to what `mount` or `update` kept, for
-  # `builtin:dispatch`.
+  # Applies an action to what `mount` or `update` kept, for `dispatch`
+  # effects.
   update =
     kept: action:
     if kept == null then

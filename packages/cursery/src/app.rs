@@ -2,17 +2,13 @@
 
 use std::{cell::Cell, iter, path::PathBuf, rc::Rc};
 
-use snix_eval::{
-    EvalMode, NixAttrs, Value,
-    generators::{self, GenCo},
-};
+use snix_eval::{EvalMode, NixAttrs, Value};
 use web_sys::{Element, Event};
 
 use crate::{
-    derivations::{Builder, Inputs},
     effects,
     error::Error,
-    events::{self, Dispatching, Listeners},
+    events::{self, Listeners},
     mounts::{self, Mount},
     session::Session,
     virtual_dom::{
@@ -97,7 +93,7 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
 
 /// Handles `event` for the app mounted into `container`, calling each
 /// handler in turn and running the effect it returns (see [`run`]).
-/// `builtin:dispatch` renders as it goes: if an effect fails, earlier ones
+/// `dispatch` effects render as they go: if an effect fails, earlier ones
 /// stay rendered.
 ///
 /// Events fired while committing are ignored, e.g. `blur` from removing a
@@ -118,7 +114,7 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
     }
 
     // Builders act on the event only while it dispatches.
-    let dispatch = mount.session.dispatching().start(container, event);
+    let dispatch = mount.session.dispatching().start(event);
     let event = events::snapshot(event, &dispatch)?;
     for handler in handlers {
         let effect = mount.session.evaluate(
@@ -132,7 +128,7 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
         )?;
 
         if !is_null(&effect) {
-            run(&mount, effect)?;
+            run(container, &mount, effect)?;
         }
     }
 
@@ -153,9 +149,9 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
 ///
 /// Each step is its own evaluation, so one doesn't force another, and the
 /// same effect twice runs twice rather than hitting the import cache.
-fn run(mount: &Mount, effect: Value) -> Result<(), Error> {
+fn run(container: &Element, mount: &Mount, effect: Value) -> Result<(), Error> {
     let mut passed = Vec::new();
-    let result = run_chain(mount, effect, &mut passed);
+    let result = run_chain(container, mount, effect, &mut passed);
     for message in passed
         .into_iter()
         .filter_map(|id| mount.session.failures().settle(id))
@@ -167,7 +163,12 @@ fn run(mount: &Mount, effect: Value) -> Result<(), Error> {
 }
 
 /// Runs the chain for [`run`], recording the IDs of failures it passed on.
-fn run_chain(mount: &Mount, effect: Value, passed: &mut Vec<u64>) -> Result<(), Error> {
+fn run_chain(
+    container: &Element,
+    mount: &Mount,
+    effect: Value,
+    passed: &mut Vec<u64>,
+) -> Result<(), Error> {
     let mut pending = Vec::new();
     let mut current = step(mount, "effects.step value", &[("value", effect)]);
     loop {
@@ -175,7 +176,7 @@ fn run_chain(mount: &Mount, effect: Value, passed: &mut Vec<u64>) -> Result<(), 
             Err(error) => Err(error),
             Ok(attrs) => {
                 if let Some(effect) = attrs.select("effect") {
-                    effects::run(mount, effect)
+                    effects::run(container, mount, effect)
                 } else if let Some(path) = attrs.select("derivation") {
                     evaluate(mount, "effects.run path", &[("path", path.clone())])
                 } else if let Some(source) = attrs.select("source") {
@@ -248,95 +249,42 @@ fn select(attrs: &NixAttrs, name: &'static str) -> Result<Value, Error> {
         .ok_or_else(|| Error::InvalidStep(format!("missing {name:?}")))
 }
 
-/// Builders acting on apps: `builtin:dispatch`.
-pub(crate) fn builders(dispatching: &Rc<Dispatching>) -> impl Iterator<Item = (String, Builder)> {
-    let dispatching = Rc::clone(dispatching);
-    let builder: Builder = Rc::new(move |co, inputs, passthru| {
-        let dispatching = Rc::clone(&dispatching);
-        Box::pin(async move { update(co, &dispatching, inputs, passthru).await })
-    });
+/// Runs a `dispatch` effect: applies `action` to the app in `container`,
+/// renders it, and outputs the next state. The app is looked up afresh, as
+/// an earlier dispatch in the same chain may have updated it.
+pub(crate) fn update(container: &Element, action: Value) -> Result<Value, Error> {
+    let mount = mounts::get(container).ok_or(Error::NotMounted)?;
+    let kept = mount.session.evaluate(
+        "renderer.update kept action",
+        &[
+            ("renderer", mount.renderer.clone()),
+            ("kept", mount.kept.clone()),
+            ("action", action),
+        ],
+        EvalMode::Strict,
+    )?;
 
-    iter::once(("builtin:dispatch".to_owned(), builder))
-}
+    let tree = mount.session.evaluate(
+        "renderer.view kept",
+        &[("renderer", mount.renderer.clone()), ("kept", kept.clone())],
+        EvalMode::Strict,
+    )?;
 
-/// Applies the action a `dispatch` derivation describes to the app whose
-/// handlers are running, renders it, and returns the next state.
-///
-/// The action is `{ type = <action input>; payload = <passthru.payload>; }`,
-/// without `payload` if none was given.
-async fn update(
-    co: &GenCo,
-    dispatching: &Rc<Dispatching>,
-    inputs: Inputs,
-    passthru: Value,
-) -> Result<Value, String> {
-    let container = dispatching
-        .handling()
-        .ok_or("Cannot dispatch outside an event handler")?;
-    let mount = mounts::get(&container).ok_or_else(|| Error::NotMounted.to_string())?;
-    let action = action(co, inputs, passthru).await?;
-    if action.is_catchable() {
-        return Ok(action);
-    }
+    let state = kept
+        .to_attrs()
+        .map_err(|error| Error::InvalidRenderer(error.to_string()))?
+        .select("state")
+        .cloned()
+        .unwrap_or(Value::Null);
 
-    let renderer = generators::request_force(co, mount.renderer.clone()).await;
-    let renderer = renderer.to_attrs().map_err(|error| error.to_string())?;
-    let function = |name| {
-        renderer
-            .select(name)
-            .cloned()
-            .ok_or_else(|| Error::InvalidRenderer(format!("missing {name:?}")).to_string())
-    };
-
-    // `update` and `render` can't dispatch.
-    let paused = dispatching.pause();
-    let kept =
-        generators::request_call_with(co, function("update")?, [mount.kept.clone(), action]).await;
-    let kept = generators::request_deep_force(co, kept).await;
-    if kept.is_catchable() {
-        return Ok(kept);
-    }
-
-    let tree = generators::request_call_with(co, function("view")?, [kept.clone()]).await;
-    let tree = generators::request_deep_force(co, tree).await;
-    if tree.is_catchable() {
-        return Ok(tree);
-    }
-    drop(paused);
-
-    let attrs = kept.to_attrs().map_err(|error| error.to_string())?;
-    let state = attrs.select("state").cloned().unwrap_or(Value::Null);
     let next = Mount {
         tree,
         kept,
         ..mount.clone()
     };
 
-    commit(&container, Some(&mount), next).map_err(|error| error.to_string())?;
+    commit(container, Some(&mount), next)?;
     Ok(state)
-}
-
-/// The action a `dispatch` derivation describes, or a catchable error from
-/// forcing its `passthru`.
-async fn action(co: &GenCo, inputs: Inputs, passthru: Value) -> Result<Value, String> {
-    let kind = inputs
-        .get("action")
-        .ok_or("Cannot dispatch without an `action`")?;
-    let mut fields = vec![("type", Value::from(kind.clone()))];
-
-    let passthru = generators::request_force(co, passthru).await;
-    if passthru.is_catchable() {
-        return Ok(passthru);
-    }
-
-    if !matches!(passthru, Value::Null) {
-        let passthru = passthru.to_attrs().map_err(|error| error.to_string())?;
-        if let Some(payload) = passthru.select("payload") {
-            fields.push(("payload", payload.clone()));
-        }
-    }
-
-    Ok(Value::attrs(NixAttrs::from_iter(fields)))
 }
 
 /// Renders `mount` into `container`, patching from `previous`, and records it.

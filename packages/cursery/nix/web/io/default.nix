@@ -1,5 +1,4 @@
-# Side effects. Return them from handlers to run them. `dispatch` is still a
-# derivation, which can also be imported to run it now.
+# Side effects. Return them from handlers to run them.
 #
 # `dispatch` describes dispatching an action to the app's `update`. Call it
 # again to give the action a payload:
@@ -8,17 +7,9 @@
 #   io.dispatch "add" { text = "milk"; }
 #
 # `update` gets `{ type; payload; }`, without `payload` if none was given.
-# Return a dispatch from a handler to run it, or import it in a handler to
-# run it now: it updates, renders, then returns the next state, or throws if
-# it failed. Imports run when forced, so force the result in the handler:
-# forced later, e.g. in `update`, it can't dispatch.
-#
-# Each dispatch hashes the current generation, so importing the same action
-# again, e.g. twice in one handler, runs it again.
-#
-# Derivations override `type`, so the action's type is the `action` input.
-# The payload goes in `passthru`, as is: it isn't hashed, so dispatches that
-# differ only in their payload share an output path.
+# Return a dispatch from a handler to run it: it updates, renders, then
+# outputs the next state. The payload is forced with it, so a throw in it
+# fails the dispatch.
 #
 # `runCommand` runs JavaScript, like nixpkgs' `runCommand` runs a shell
 # script. Assign the result to `$out`. Each attr of `env` is in scope as
@@ -75,30 +66,14 @@
 let
   inherit (import ../../internal/io/effects.nix) effect isEffect isIo;
 
-  action =
-    inputs:
-    derivation (
-      {
-        name = "dispatch";
-        builder = "builtin:dispatch";
-        generation = builtins.__currentGeneration inputs;
-      }
-      // inputs
-    );
-
   dispatch =
     type:
     if !builtins.isString type then
       throw "Invalid action type of type ${builtins.typeOf type}: expected a string"
     else
-      action { action = type; }
+      effect "dispatch" { inherit type; }
       // {
-        __functor =
-          _: payload:
-          action {
-            action = type;
-            passthru = { inherit payload; };
-          };
+        __functor = _: payload: effect "dispatch" { inherit type payload; };
       };
 
   runCommand =

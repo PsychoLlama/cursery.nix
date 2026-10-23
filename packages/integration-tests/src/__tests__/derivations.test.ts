@@ -38,22 +38,10 @@ function logged(view: { get: (selector: string) => HTMLElement }) {
 }
 
 describe("derivations", () => {
-  it("runs a derivation when imported", () => {
-    using view = render(
-      logger(nix`html.button {
-        on.click = event: let state = import (log 0); in builtins.seq state (dispatch "result" state);
-      }`),
-    );
-
-    view.get("button").click();
-
-    expect(logged(view)).toEqual([0, [0]]);
-  });
-
   it("only describes the effect until imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (dispatch "noop").type;
+        on.click = event: log (derivation { name = "x"; builder = "builtin:missing"; }).type;
       }`),
     );
 
@@ -142,30 +130,14 @@ describe("derivations", () => {
     expect(second).toBeGreaterThan(first!);
   });
 
-  it("advances the generation after each build", () => {
-    using view = render(
-      logger(nix`html.button {
-        on.click = event:
-          let
-            before = builtins.__currentGeneration event;
-            built = import (log 0);
-          in
-          if before >= 0 && builtins.isList built then
-            log (builtins.__currentGeneration built > before)
-          else
-            null;
-      }`),
-    );
-
-    view.get("button").click();
-
-    expect(logged(view)).toEqual([0, true]);
-  });
-
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (dispatch "noop").outPath;
+        on.click = event: log (derivation {
+          name = "x";
+          builder = "none";
+          generation = builtins.__currentGeneration event;
+        }).outPath;
       }`),
     );
 

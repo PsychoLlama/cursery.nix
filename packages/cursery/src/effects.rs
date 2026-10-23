@@ -4,11 +4,12 @@
 //! plain data.
 
 use snix_eval::{NixAttrs, Value};
+use web_sys::Element;
 
-use crate::{commands, error::Error, mounts::Mount};
+use crate::{app, commands, error::Error, mounts::Mount};
 
-/// Runs `effect`, returning its output.
-pub(crate) fn run(mount: &Mount, effect: &Value) -> Result<Value, Error> {
+/// Runs `effect` for the app in `container`, returning its output.
+pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<Value, Error> {
     let effect = attrs(effect)?;
     let kind = forced(field(&effect, "kind")?);
     let kind = kind
@@ -25,11 +26,13 @@ pub(crate) fn run(mount: &Mount, effect: &Value) -> Result<Value, Error> {
             .map(|event| {
                 event.prevent_default();
                 Value::Null
-            }),
-        "runCommand" => commands::run(&inputs),
-        kind => Err(format!("Unknown effect {kind:?}")),
+            })
+            .map_err(Error::Effect),
+        "runCommand" => commands::run(&inputs).map_err(Error::Effect),
+        // The inputs are the action: `{ type; payload; }`.
+        "dispatch" => app::update(container, Value::attrs(inputs)),
+        kind => Err(Error::Effect(format!("Unknown effect {kind:?}"))),
     }
-    .map_err(Error::Effect)
 }
 
 /// Sees through thunks, which forcing the effect has already forced.

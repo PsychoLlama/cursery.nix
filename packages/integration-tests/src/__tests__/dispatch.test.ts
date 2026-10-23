@@ -14,7 +14,8 @@ function render(code: string) {
     load({
       "default.nix": nix`let
         inherit (import <web/dom>) html;
-        inherit (import <web/io>) dispatch;
+        io = import <web/io>;
+        inherit (io) dispatch;
       in ${code}`,
     }),
   );
@@ -41,49 +42,37 @@ function errors(view: { get: (selector: string) => HTMLElement }) {
 }
 
 describe("dispatch", () => {
-  it("returns a derivation", () => {
+  it("describes an effect", () => {
     expect(
-      evaluate(nix`let drv = io.dispatch "increment"; in {
-        inherit (drv) type name builder action;
-        isFunctor = drv ? __functor;
+      evaluate(nix`let effect = io.dispatch "increment"; in {
+        inherit (effect) _type kind inputs;
+        isFunctor = effect ? __functor;
       }`),
     ).toEqual({
-      type: "derivation",
-      name: "dispatch",
-      builder: "builtin:dispatch",
-      action: "increment",
+      _type: "effect",
+      kind: "dispatch",
+      inputs: { type: "increment" },
       isFunctor: true,
     });
   });
 
   it("sets the payload when called", () => {
     expect(
-      evaluate(nix`let drv = io.dispatch "add" { text = "milk"; }; in {
-        inherit (drv) type action passthru;
-        isFunctor = drv ? __functor;
+      evaluate(nix`let effect = io.dispatch "add" { text = "milk"; }; in {
+        inherit (effect) _type kind inputs;
+        isFunctor = effect ? __functor;
       }`),
     ).toEqual({
-      type: "derivation",
-      action: "add",
-      passthru: { payload: { text: "milk" } },
+      _type: "effect",
+      kind: "dispatch",
+      inputs: { type: "add", payload: { text: "milk" } },
       isFunctor: false,
     });
   });
 
-  it("hashes the action into the output path, but not the payload", () => {
-    expect(
-      evaluate(nix`let out = drv: drv.outPath; in {
-        same = out (io.dispatch "a") == out (io.dispatch "a");
-        type = out (io.dispatch "a") != out (io.dispatch "b");
-        payload = out (io.dispatch "a" 1) == out (io.dispatch "a" 2);
-        unset = out (io.dispatch "a") == out (io.dispatch "a" null);
-      }`),
-    ).toEqual({ same: true, type: true, payload: true, unset: true });
-  });
-
   it("keeps the payload as a Nix value", () => {
     expect(
-      evaluate(nix`(io.dispatch "call" (x: x + 1)).passthru.payload 1`),
+      evaluate(nix`(io.dispatch "call" (x: x + 1)).inputs.payload 1`),
     ).toBe(2);
   });
 
@@ -114,7 +103,7 @@ describe("dispatch", () => {
       ]);
     });
 
-    it("renders, then returns the next state when imported", () => {
+    it("renders, then outputs the next state", () => {
       using view = render(nix`{
         init = { count = 0; seen = null; };
         update = state: action:
@@ -123,10 +112,7 @@ describe("dispatch", () => {
         render = state: [
           (html.pre (builtins.toJSON state))
           (html.button {
-            on.click = event:
-              let result = import (dispatch "increment"); in
-              # Forced here: forced lazily, in \`update\`, it couldn't dispatch.
-              builtins.seq result (dispatch "see" result);
+            on.click = event: io.map (result: dispatch "see" result) (dispatch "increment");
           })
         ];
       }`);
@@ -139,7 +125,7 @@ describe("dispatch", () => {
       });
     });
 
-    it("runs the same dispatch again when imported again", () => {
+    it("runs the same dispatch each time", () => {
       using view = render(nix`{
         init = 0;
         update = state: action: state + 1;
@@ -147,11 +133,9 @@ describe("dispatch", () => {
           (html.pre (builtins.toJSON state))
           (html.button {
             on.click = event:
-              let
-                first = import (dispatch "increment");
-                second = import (dispatch "increment");
-              in
-              if first == 1 && second == 2 then null else throw "not run twice";
+              let increment = dispatch "increment"; in
+              io.map (outputs: if outputs == [ 1 2 ] then null else throw "not run twice")
+                (io.all [ increment increment ]);
           })
         ];
       }`);
@@ -169,8 +153,7 @@ describe("dispatch", () => {
           (html.pre (builtins.toJSON state))
           (html.button {
             on.click = event:
-              let result = import (dispatch "increment"); in
-              if result == 1 then throw "later" else null;
+              io.map (result: if result == 1 then throw "later" else null) (dispatch "increment");
           })
         ];
       }`);
@@ -179,26 +162,21 @@ describe("dispatch", () => {
       expect(shown(view)).toBe(1);
     });
 
-    it("can't dispatch while rendering", () => {
-      expect(() =>
-        render(nix`{ render = state: import (dispatch "render"); }`),
-      ).toThrow(/Cannot dispatch outside an event handler/);
-    });
-
-    it("can't dispatch from `update`", () => {
+    it("doesn't run effects `update` returns", () => {
       using view = render(nix`{
-        init = null;
-        update = state: action: import (dispatch "nested");
+        init = { types = [ ]; };
+        update = state: action: {
+          effect = dispatch "nested";
+          types = state.types ++ [ action.type ];
+        };
         render = state: [
-          (html.pre (builtins.toJSON state))
+          (html.pre (builtins.toJSON state.types))
           (html.button { on.click = event: dispatch "outer"; })
         ];
       }`);
 
-      expect(errors(view)).toEqual([
-        expect.stringMatching(/Cannot dispatch outside an event handler/),
-      ]);
-      expect(shown(view)).toBe(null);
+      expect(errors(view)).toEqual([]);
+      expect(shown(view)).toEqual(["outer"]);
     });
   });
 

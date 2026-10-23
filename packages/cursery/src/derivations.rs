@@ -1,16 +1,11 @@
 //! Side effects, as derivations. `derivation` describes an effect, and
 //! importing it (import from derivation) runs it:
 //!
-//!   import (io.dispatch "increment")
-//!
-//! Where `<web/io>` defines it as:
-//!
-//!   derivation {
-//!     name = "dispatch";
-//!     builder = "builtin:dispatch";
-//!     action = "increment";
-//!     ...
-//!   }
+//!   import (derivation {
+//!     name = "failure";
+//!     builder = "builtin:fail";
+//!     message = "nope";
+//!   })
 //!
 //! The import evaluates to the effect's result, or throws if it failed. The
 //! throw is catchable (`tryEval`), unlike a failed import.
