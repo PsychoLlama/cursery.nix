@@ -45,9 +45,7 @@ impl Session {
         let dispatching = Rc::new(Dispatching::default());
         let failures = Rc::new(Failures::default());
         let derivations = Rc::new(Derivations::new(
-            dispatching
-                .builders()
-                .chain(app::builders(&dispatching))
+            app::builders(&dispatching)
                 .chain(commands::builders(&dispatching))
                 .chain(failures.builders()),
         ));

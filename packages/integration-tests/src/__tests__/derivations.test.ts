@@ -10,7 +10,7 @@ function render(code: string) {
     load({
       "default.nix": nix`let
       inherit (import <web/dom>) html;
-      inherit (import <web/io>) dispatch;
+      inherit (import <web/io>) dispatch runCommand;
       log = dispatch "log";
     in ${code}`,
     }),
@@ -37,44 +37,39 @@ function logged(view: { get: (selector: string) => HTMLElement }) {
   return JSON.parse(view.get("pre").textContent!) as unknown;
 }
 
-/** Clicks `element`, returning whether the default was prevented. */
-function click(element: HTMLElement) {
-  const event = new MouseEvent("click", { bubbles: true, cancelable: true });
-  element.dispatchEvent(event);
-  return event.defaultPrevented;
+declare global {
+  /** What commands pushed. */
+  var ran: unknown[] | undefined;
 }
 
 describe("derivations", () => {
+  afterEach(() => {
+    globalThis.ran = undefined;
+  });
+
   it("runs a derivation when imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (import (event.preventDefault { }));
+        on.click = event: log (import (runCommand "one" { } "$out = 1;"));
       }`),
     );
 
-    expect(click(view.get("button"))).toBe(true);
-    expect(logged(view)).toEqual([null]);
+    view.get("button").click();
+
+    expect(logged(view)).toEqual([1]);
   });
 
   it("only describes the effect until imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (event.preventDefault { }).type;
+        on.click = event: log (runCommand "ran" { } "globalThis.ran = [ ];").type;
       }`),
-    );
-
-    expect(click(view.get("button"))).toBe(false);
-    expect(logged(view)).toEqual(["derivation"]);
-  });
-
-  it("hides the event's `__id`", () => {
-    using view = render(
-      logger(nix`html.button { on.click = event: log (event ? __id); }`),
     );
 
     view.get("button").click();
 
-    expect(logged(view)).toEqual([false]);
+    expect(globalThis.ran).toBeUndefined();
+    expect(logged(view)).toEqual(["derivation"]);
   });
 
   it("returns the attributes as a derivation", () => {
@@ -163,7 +158,7 @@ describe("derivations", () => {
         on.click = event:
           let
             before = builtins.__currentGeneration event;
-            built = import (event.preventDefault { });
+            built = import (runCommand "none" { } "");
           in
           if before >= 0 && built == null then
             log (builtins.__currentGeneration built > before)
@@ -180,7 +175,7 @@ describe("derivations", () => {
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (event.preventDefault { }).outPath;
+        on.click = event: log (runCommand "none" { } "").outPath;
       }`),
     );
 
@@ -189,30 +184,6 @@ describe("derivations", () => {
 
     const [first, second] = logged(view) as string[];
     expect(first).not.toBe(second);
-  });
-
-  it("fails builders on events that finished dispatching", () => {
-    using view = render(nix`{
-      init = null;
-      update = state: action: action.payload;
-      render = state: [
-        (html.button {
-          id = "keep";
-          on.click = event: dispatch "keep" (event.preventDefault { });
-        })
-        (html.button { id = "run"; on.click = event: import state; })
-      ];
-    }`);
-
-    view.get("#keep").click();
-
-    using error = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(click(view.get("#run"))).toBe(false);
-    expect(error.mock.calls.map(([message]) => String(message))).toEqual([
-      expect.stringMatching(
-        /Cannot preventDefault: event \d+ finished dispatching/,
-      ),
-    ]);
   });
 
   it("throws catchably when a build fails", () => {
@@ -247,26 +218,6 @@ describe("derivations", () => {
           nix`import (derivation { name = "missing"; builder = "builtin:missing"; })`,
         ),
       ).toEqual([expect.stringMatching(/Unknown builder/)]);
-    });
-
-    it("reports missing events", () => {
-      const prevent = (attrs: string) =>
-        errors(nix`import (derivation ({
-          name = "preventDefault";
-          builder = "builtin:preventDefault";
-        } // ${attrs}))`);
-
-      expect(prevent(nix`{ }`)).toEqual([
-        expect.stringMatching(/Cannot preventDefault without an event/),
-      ]);
-      expect(prevent(nix`{ event = "nope"; }`)).toEqual([
-        expect.stringMatching(
-          /`event` is \\"nope\\", which is not an event's `__id`/,
-        ),
-      ]);
-      expect(prevent(nix`{ event = 1000000; }`)).toEqual([
-        expect.stringMatching(/which is not an event's `__id`/),
-      ]);
     });
 
     it("validates names", () => {

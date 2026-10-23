@@ -10,6 +10,7 @@ use web_sys::{Element, Event};
 
 use crate::{
     derivations::{Builder, Inputs},
+    effects,
     error::Error,
     events::{self, Dispatching, Listeners},
     mounts::{self, Mount},
@@ -173,7 +174,9 @@ fn run_chain(mount: &Mount, effect: Value, passed: &mut Vec<u64>) -> Result<(), 
         let output = match current {
             Err(error) => Err(error),
             Ok(attrs) => {
-                if let Some(path) = attrs.select("effect") {
+                if let Some(effect) = attrs.select("effect") {
+                    effects::run(mount, effect)
+                } else if let Some(path) = attrs.select("derivation") {
                     evaluate(mount, "effects.run path", &[("path", path.clone())])
                 } else if let Some(source) = attrs.select("source") {
                     pending.push(select(&attrs, "next")?);

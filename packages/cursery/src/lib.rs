@@ -3,6 +3,7 @@
 mod app;
 mod commands;
 mod derivations;
+mod effects;
 mod error;
 mod events;
 mod failures;

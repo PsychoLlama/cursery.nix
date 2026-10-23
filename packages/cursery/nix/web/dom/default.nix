@@ -21,11 +21,11 @@
 #
 # Combine effects with `io.all` and friends to run several:
 #
-#   html.form { on.submit = event: io.all [ (event.preventDefault { }) (io.dispatch "save") ]; }
+#   html.form { on.submit = event: io.all [ event.preventDefault (io.dispatch "save") ]; }
 #
-# Snapshots describe effects on the event too, run by importing them:
+# Snapshots describe effects on the event too:
 #
-#   html.a { on.click = event: import (event.preventDefault { }); }
+#   html.a { on.click = event: event.preventDefault; }
 #
 # `svg` has builders for SVG elements, rendered inline or, through `image`
 # from `<web/style>`, as CSS images:

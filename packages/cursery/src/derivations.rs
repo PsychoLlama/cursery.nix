@@ -1,14 +1,15 @@
 //! Side effects, as derivations. `derivation` describes an effect, and
 //! importing it (import from derivation) runs it:
 //!
-//!   import (event.preventDefault { })
+//!   import (io.runCommand "count" { } "$out = 1;")
 //!
-//! Where `internal/io/event.nix` defines it as:
+//! Where `<web/io>` defines it as:
 //!
 //!   derivation {
-//!     name = "preventDefault";
-//!     builder = "builtin:preventDefault";
-//!     event = snapshot.__id;
+//!     name = "count";
+//!     builder = "builtin:runCommand";
+//!     script = "$out = 1;";
+//!     ...
 //!   }
 //!
 //! The import evaluates to the effect's result, or throws if it failed. The

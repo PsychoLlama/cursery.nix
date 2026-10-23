@@ -10,17 +10,13 @@ use std::{
 };
 
 use js_sys::{Object, Reflect};
-use snix_eval::Value;
+use snix_eval::{NixAttrs, Value};
 use wasm_bindgen::{JsCast, JsValue, prelude::Closure};
 use web_sys::{Element, Event};
 
 use rustc_hash::FxHashMap;
 
-use crate::{
-    app,
-    derivations::{Builder, Inputs},
-    error::Error,
-};
+use crate::{app, effects, error::Error};
 
 /// Largest integer a JS number holds exactly (`Number.MAX_SAFE_INTEGER`).
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
@@ -29,11 +25,6 @@ const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 const TARGET_FIELDS: [&str; 2] = ["value", "checked"];
 
 type Listener = Closure<dyn Fn(Event)>;
-
-/// A builder acting on an event, named `builtin:<name>`.
-type Builtin = (&'static str, fn(&Event));
-
-const BUILTINS: [Builtin; 1] = [("preventDefault", Event::prevent_default)];
 
 /// Listeners on a container, removed when dropped.
 #[derive(Debug)]
@@ -132,36 +123,21 @@ impl Dispatching {
         }
     }
 
-    /// Builders acting on events, e.g. `builtin:preventDefault`. They
-    /// take the event's `__id` as their `event` input.
-    pub(crate) fn builders(self: &Rc<Self>) -> impl Iterator<Item = (String, Builder)> {
-        BUILTINS.into_iter().map(|(name, run)| {
-            let dispatching = Rc::clone(self);
-            let builder: Builder = Rc::new(move |_co, inputs, _passthru| {
-                let dispatching = Rc::clone(&dispatching);
-                Box::pin(async move {
-                    run(&dispatching.find(name, &inputs)?);
-                    Ok(Value::Null)
-                })
-            });
-
-            (format!("builtin:{name}"), builder)
-        })
-    }
-
-    /// The event builder `name` acts on, from its inputs.
-    fn find(&self, name: &str, inputs: &Inputs) -> Result<Event, String> {
-        let input = inputs.get("event").ok_or_else(|| {
+    /// The event that effect `name` acts on, from the `__id` that is its
+    /// `event` input, e.g. for `preventDefault`.
+    pub(crate) fn find(&self, name: &str, inputs: &NixAttrs) -> Result<Event, String> {
+        let input = inputs.select("event").map(effects::forced).ok_or_else(|| {
             format!("Cannot {name} without an event: set `event` to the event's `__id`")
         })?;
 
-        let id = input
-            .parse()
-            .ok()
-            .filter(|id| (0..self.next_id.get()).contains(id))
-            .ok_or_else(|| {
-                format!("Cannot {name}: `event` is {input:?}, which is not an event's `__id`")
-            })?;
+        let id = match input {
+            Value::Integer(id) if (0..self.next_id.get()).contains(&id) => id,
+            input => {
+                return Err(format!(
+                    "Cannot {name}: `event` is {input}, which is not an event's `__id`"
+                ));
+            }
+        };
 
         self.events
             .borrow()

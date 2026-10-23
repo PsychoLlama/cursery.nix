@@ -32,6 +32,13 @@ pub(crate) enum Error {
     #[error("Invalid effect step: {0}")]
     InvalidStep(String),
 
+    #[error("Invalid effect: {0}")]
+    InvalidEffect(String),
+
+    /// An effect failed, e.g. a command threw.
+    #[error("{0}")]
+    Effect(String),
+
     #[error("Cannot convert a {0} to JS")]
     Unconvertible(&'static str),
 

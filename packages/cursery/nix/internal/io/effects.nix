@@ -1,9 +1,13 @@
-# Running effects: derivations (see `derivations.rs`), and `io.map` chains of
-# them from `<web/io>`. Rust steps through what handlers return (see `run` in
-# `app.rs`).
+# Running effects, and `io.map` chains of them from `<web/io>`. Rust steps
+# through what handlers return (see `run` in `app.rs`).
+#
+# Effects describe something for Rust to do (see `effects.rs`), by `kind`,
+# with `inputs`. Some are still derivations (see `derivations.rs`), run by
+# importing them.
 
 let
-  isEffect = value: builtins.isAttrs value && value.type or null == "derivation";
+  isDerivation = value: builtins.isAttrs value && value.type or null == "derivation";
+  isEffect = value: builtins.isAttrs value && (value._type or null == "effect" || isDerivation value);
   isIo = value: builtins.isAttrs value && value._type or null == "io";
 
   # Checks what a handler returned: an effect, an `io.map` chain, or null.
@@ -20,17 +24,30 @@ in
 {
   inherit isEffect isIo check;
 
+  # Describes an effect. Inputs are forced with it, so a throw in them fails
+  # the effect, rather than whatever reads its output.
+  effect =
+    kind: inputs:
+    builtins.deepSeq [ kind inputs ] {
+      _type = "effect";
+      inherit kind inputs;
+    };
+
   # What running `value` takes next:
   #
-  # - `{ effect; }`: `run` the effect's output path, then the output is the
-  #   value.
+  # - `{ effect; }`: Rust runs the effect, deep-forced, then the output is
+  #   the value.
+  # - `{ derivation; }`: `run` the derivation's output path, then the output
+  #   is the value.
   # - `{ source; next; }`: step through `source`, then call `next` with its
   #   output and step through the result.
   # - `{ value; }`: nothing. `value` is the output.
   step =
     value:
-    if isEffect value then
-      { effect = value.outPath; }
+    if isDerivation value then
+      { derivation = value.outPath; }
+    else if isEffect value then
+      builtins.deepSeq value { effect = value; }
     else if isIo value then
       { inherit (value) source next; }
     else
