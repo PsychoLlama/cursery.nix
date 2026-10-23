@@ -10,7 +10,7 @@ function render(code: string) {
     load({
       "default.nix": nix`let
       inherit (import <web/dom>) html;
-      inherit (import <web/io>) dispatch runCommand;
+      inherit (import <web/io>) dispatch;
       log = dispatch "log";
     in ${code}`,
     }),
@@ -37,38 +37,28 @@ function logged(view: { get: (selector: string) => HTMLElement }) {
   return JSON.parse(view.get("pre").textContent!) as unknown;
 }
 
-declare global {
-  /** What commands pushed. */
-  var ran: unknown[] | undefined;
-}
-
 describe("derivations", () => {
-  afterEach(() => {
-    globalThis.ran = undefined;
-  });
-
   it("runs a derivation when imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (import (runCommand "one" { } "$out = 1;"));
+        on.click = event: let state = import (log 0); in builtins.seq state (dispatch "result" state);
       }`),
     );
 
     view.get("button").click();
 
-    expect(logged(view)).toEqual([1]);
+    expect(logged(view)).toEqual([0, [0]]);
   });
 
   it("only describes the effect until imported", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (runCommand "ran" { } "globalThis.ran = [ ];").type;
+        on.click = event: log (dispatch "noop").type;
       }`),
     );
 
     view.get("button").click();
 
-    expect(globalThis.ran).toBeUndefined();
     expect(logged(view)).toEqual(["derivation"]);
   });
 
@@ -158,9 +148,9 @@ describe("derivations", () => {
         on.click = event:
           let
             before = builtins.__currentGeneration event;
-            built = import (runCommand "none" { } "");
+            built = import (log 0);
           in
-          if before >= 0 && built == null then
+          if before >= 0 && builtins.isList built then
             log (builtins.__currentGeneration built > before)
           else
             null;
@@ -169,13 +159,13 @@ describe("derivations", () => {
 
     view.get("button").click();
 
-    expect(logged(view)).toEqual([true]);
+    expect(logged(view)).toEqual([0, true]);
   });
 
   it("gives each event its own outputs", () => {
     using view = render(
       logger(nix`html.button {
-        on.click = event: log (runCommand "none" { } "").outPath;
+        on.click = event: log (dispatch "noop").outPath;
       }`),
     );
 

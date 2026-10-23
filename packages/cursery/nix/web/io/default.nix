@@ -1,4 +1,5 @@
-# Side effects, as derivations. Import one to run it now.
+# Side effects. Return them from handlers to run them. `dispatch` is still a
+# derivation, which can also be imported to run it now.
 #
 # `dispatch` describes dispatching an action to the app's `update`. Call it
 # again to give the action a payload:
@@ -27,12 +28,9 @@
 #     $out = $count * 2;
 #   ''
 #
-# Return it from a handler to run it, or import it in a handler to get
-# `$out` back, as JSON would have it, or throw what the script threw. Scripts
-# run synchronously, so `$out` can't be a promise.
-#
-# `env` goes in `passthru`, so it's passed as is rather than coerced. Like
-# dispatches, commands hash the current generation, so each import runs.
+# Return it from a handler to run it. Its output is `$out`, as JSON would
+# have it. Scripts run synchronously, so `$out` can't be a promise. Errors
+# name the command.
 #
 # `map` sequences effects. It runs an effect, then calls a function with its
 # output. If the function returns another effect, or another `map`, that
@@ -75,7 +73,7 @@
 #   ])
 
 let
-  inherit (import ../../internal/io/effects.nix) isEffect isIo;
+  inherit (import ../../internal/io/effects.nix) effect isEffect isIo;
 
   action =
     inputs:
@@ -105,15 +103,14 @@ let
 
   runCommand =
     name: env: script:
-    if !builtins.isAttrs env then
+    if !builtins.isString name then
+      throw "Invalid command name of type ${builtins.typeOf name}: expected a string"
+    else if !builtins.isAttrs env then
       throw "Invalid env of type ${builtins.typeOf env}: expected an attrset"
+    else if !builtins.isString script then
+      throw "Invalid script of type ${builtins.typeOf script}: expected a string"
     else
-      derivation {
-        inherit name script;
-        builder = "builtin:runCommand";
-        generation = builtins.__currentGeneration env;
-        passthru = { inherit env; };
-      };
+      effect "runCommand" { inherit name env script; };
 
   map =
     next: source:

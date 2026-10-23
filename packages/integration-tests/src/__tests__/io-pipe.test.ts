@@ -20,8 +20,7 @@ function render(handler: string) {
         inherit (import <web/dom>) html;
         io = import <web/io>;
         log = io.dispatch "log";
-        # Commands don't hash their env, so the name tells pushes apart.
-        push = value: io.runCommand "push-\${toString value}" { inherit value; } ''
+        push = value: io.runCommand "push" { inherit value; } ''
           $out = (globalThis.ran ??= []).push($value);
         '';
       in {
@@ -117,7 +116,9 @@ describe("pipe", () => {
         (_: log "after")
       ]`);
 
-      expect(view.click()).toEqual(["Unhandled failure: Error: nope"]);
+      expect(view.click()).toEqual([
+        'Unhandled failure: Command "fail" failed: Error: nope',
+      ]);
       expect(globalThis.ran).toEqual([1]);
       expect(view.logged()).toEqual(["after"]);
     });

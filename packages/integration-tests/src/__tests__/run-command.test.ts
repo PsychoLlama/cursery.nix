@@ -8,9 +8,9 @@ function evaluate(code: string) {
 }
 
 /**
- * Loads and mounts an app with `html`, `dispatch`, `runCommand`, `log`
- * (dispatching a `log` action), and `logForced` in scope, logging payloads
- * into a `<pre>` around the button `button` renders.
+ * Loads and mounts an app with `html`, `io`, and `log` (dispatching a `log`
+ * action) in scope, logging payloads into a `<pre>` around the button
+ * `button` renders.
  */
 function render(button: string) {
   using resources = new DisposableStack();
@@ -18,11 +18,8 @@ function render(button: string) {
     load({
       "default.nix": nix`let
         inherit (import <web/dom>) html;
-        inherit (import <web/io>) dispatch runCommand;
-        log = dispatch "log";
-
-        # Imports run when forced, so this forces \`value\` before \`update\`.
-        logForced = value: if builtins.toJSON value != "" then log value else null;
+        io = import <web/io>;
+        log = io.dispatch "log";
       in {
         init = [ ];
         update = state: action: state ++ [ action.payload ];
@@ -60,6 +57,10 @@ function errors(handler: string) {
   return error.mock.calls.map(([message]) => String(message));
 }
 
+/** Clicks a button running `command`, returning the payload `$out` logs. */
+const output = (command: string) =>
+  logs(nix`io.map (out: log out) (${command})`);
+
 declare global {
   /** What scripts ran, for scripts to push to. */
   var ran: unknown[] | undefined;
@@ -70,56 +71,48 @@ describe("runCommand", () => {
     globalThis.ran = undefined;
   });
 
-  it("returns a derivation", () => {
-    expect(
-      evaluate(nix`let drv = io.runCommand "hi" { n = 1; } "$out = 1;"; in {
-        inherit (drv) type name builder script passthru;
-      }`),
-    ).toEqual({
-      type: "derivation",
-      name: "hi",
-      builder: "builtin:runCommand",
-      script: "$out = 1;",
-      passthru: { env: { n: 1 } },
+  it("describes an effect", () => {
+    expect(evaluate(nix`io.runCommand "hi" { n = 1; } "$out = 1;"`)).toEqual({
+      _type: "effect",
+      kind: "runCommand",
+      inputs: { name: "hi", env: { n: 1 }, script: "$out = 1;" },
     });
   });
 
-  it("returns `$out` when imported", () => {
+  it("outputs `$out`", () => {
     expect(
-      logs(nix`logForced (import (runCommand "out" { } ''
+      output(nix`io.runCommand "out" { } ''
         $out = { list: [1, 2.5, "three", true, null] };
-      ''))`),
+      ''`),
     ).toEqual([{ list: [1, 2.5, "three", true, null] }]);
   });
 
-  it("returns null without `$out`", () => {
-    expect(logs(nix`logForced (import (runCommand "none" { } ""))`)).toEqual([
-      null,
-    ]);
+  it("outputs null without `$out`", () => {
+    expect(output(nix`io.runCommand "none" { } ""`)).toEqual([null]);
   });
 
   it("converts `$out` as JSON does", () => {
     expect(
-      logs(nix`logForced (import (runCommand "json" { } ''
+      output(nix`io.runCommand "json" { } ''
         $out = { gone: undefined, date: new Date(0), list: [undefined] };
-      ''))`),
+      ''`),
     ).toEqual([{ date: "1970-01-01T00:00:00.000Z", list: [null] }]);
   });
 
   it("passes `env` as `$<name>`", () => {
     expect(
-      logs(nix`logForced (import (runCommand "env" {
+      output(nix`io.runCommand "env" {
         count = 3;
         attrs = { list = [ "a" ]; };
       } ''
         $out = [$count * 2, $attrs.list[0]];
-      ''))`),
+      ''`),
     ).toEqual([[6, "a"]]);
   });
 
   it("runs when returned from a handler", () => {
     using view = render(
-      nix`html.button { on.click = event: runCommand "push" { } "(globalThis.ran ??= []).push(1)"; }`,
+      nix`html.button { on.click = event: io.runCommand "push" { } "(globalThis.ran ??= []).push(1)"; }`,
     );
 
     view.click();
@@ -128,73 +121,69 @@ describe("runCommand", () => {
     expect(globalThis.ran).toEqual([1, 1]);
   });
 
-  it("runs again when imported again", () => {
+  it("runs the same command each time", () => {
     expect(
       logs(nix`let
-        count = _: import (runCommand "count" { } "$out = (globalThis.ran ??= []).push(1);");
-        first = count null;
+        count = io.runCommand "count" { } "$out = (globalThis.ran ??= []).push(1);";
       in
-      # Forces \`first\` before describing the same command again.
-      if first == 1 then logForced [ first (count first) ] else null`),
+      io.map (outputs: log outputs) (io.all [ count count ])`),
     ).toEqual([[1, 2]]);
   });
 
-  it("throws catchably when the script throws", () => {
+  it("tells commands apart by their env", () => {
+    logs(nix`let
+      push = value: io.runCommand "push" { inherit value; } "(globalThis.ran ??= []).push($value);";
+    in
+    io.all [ (push 1) (push 2) ]`);
+
+    expect(globalThis.ran).toEqual([1, 2]);
+  });
+
+  it("passes failures on lazily", () => {
     expect(
       logs(
-        nix`logForced (builtins.tryEval (import (runCommand "fail" { } "throw new Error('nope')"))).success`,
+        nix`io.map (out: log (builtins.tryEval out).success) (io.runCommand "fail" { } "throw new Error('nope')")`,
       ),
     ).toEqual([false]);
   });
 
   describe("errors", () => {
-    it("reports thrown errors", () => {
+    it("reports thrown errors, naming the command", () => {
       expect(
-        errors(nix`import (runCommand "fail" { } "throw new Error('nope')")`),
-      ).toEqual([expect.stringMatching(/Error: nope/)]);
+        errors(nix`io.runCommand "fail" { } "throw new Error('nope')"`),
+      ).toEqual([expect.stringMatching(/Command "fail" failed: Error: nope/)]);
     });
 
     it("reports syntax errors", () => {
-      expect(errors(nix`import (runCommand "bad" { } "$out = ;")`)).toEqual([
+      expect(errors(nix`io.runCommand "bad" { } "$out = ;"`)).toEqual([
         expect.stringMatching(/SyntaxError/),
       ]);
     });
 
     it("rejects promises", () => {
       expect(
-        errors(
-          nix`import (runCommand "async" { } "$out = Promise.resolve(1);")`,
-        ),
+        errors(nix`io.runCommand "async" { } "$out = Promise.resolve(1);"`),
       ).toEqual([expect.stringMatching(/can't be a promise/)]);
     });
 
     it("rejects env names that aren't identifiers", () => {
-      expect(errors(nix`import (runCommand "env" { "a-b" = 1; } "")`)).toEqual([
-        expect.stringMatching(/Invalid env \\"a-b\\"/),
+      expect(errors(nix`io.runCommand "env" { "a-b" = 1; } ""`)).toEqual([
+        expect.stringMatching(/Invalid env "a-b"/),
       ]);
-      expect(errors(nix`import (runCommand "env" { out = 1; } "")`)).toEqual([
+      expect(errors(nix`io.runCommand "env" { out = 1; } ""`)).toEqual([
         expect.stringMatching(/other than `out`/),
       ]);
     });
 
-    it("rejects env that isn't an attrset", () => {
-      expect(errors(nix`runCommand "env" [ ] ""`)).toEqual([
-        expect.stringMatching(/Invalid env of type list/),
-      ]);
-    });
-
-    it("refuses to run while rendering", () => {
-      using resources = new DisposableStack();
-      const { path } = resources.use(
-        load({
-          "default.nix": nix`let inherit (import <web/io>) runCommand; in {
-            render = state: import (runCommand "render" { } "$out = 1;");
-          }`,
-        }),
+    it("validates arguments", () => {
+      expect(() => evaluate(nix`io.runCommand 1 { } ""`)).toThrow(
+        /Invalid command name of type int/,
       );
-
-      expect(() => resources.use(mount(path))).toThrow(
-        /Cannot runCommand outside an event handler/,
+      expect(() => evaluate(nix`io.runCommand "env" [ ] ""`)).toThrow(
+        /Invalid env of type list/,
+      );
+      expect(() => evaluate(nix`io.runCommand "env" { } 1`)).toThrow(
+        /Invalid script of type int/,
       );
     });
   });

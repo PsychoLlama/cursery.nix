@@ -5,7 +5,7 @@
 
 use snix_eval::{NixAttrs, Value};
 
-use crate::{error::Error, mounts::Mount};
+use crate::{commands, error::Error, mounts::Mount};
 
 /// Runs `effect`, returning its output.
 pub(crate) fn run(mount: &Mount, effect: &Value) -> Result<Value, Error> {
@@ -26,6 +26,7 @@ pub(crate) fn run(mount: &Mount, effect: &Value) -> Result<Value, Error> {
                 event.prevent_default();
                 Value::Null
             }),
+        "runCommand" => commands::run(&inputs),
         kind => Err(format!("Unknown effect {kind:?}")),
     }
     .map_err(Error::Effect)

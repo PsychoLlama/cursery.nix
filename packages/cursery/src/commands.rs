@@ -1,4 +1,4 @@
-//! `builtin:runCommand`: runs JavaScript, like nixpkgs' `runCommand` runs a
+//! `runCommand`: runs JavaScript, like nixpkgs' `runCommand` runs a
 //! shell script. See `io.runCommand` in `<web/io>`.
 //!
 //! The script assigns its result to `$out`, and each attr of `env` is in
@@ -10,85 +10,42 @@
 //!
 //! Scripts run synchronously: evaluation can't wait for a promise.
 
-use std::{iter, rc::Rc};
-
 use js_sys::{Array, Function, JSON, Reflect};
-use snix_eval::{
-    Value,
-    generators::{self, GenCo},
-};
+use snix_eval::{NixAttrs, Value};
 use wasm_bindgen::{JsCast, JsValue};
 
-use crate::{
-    derivations::{Builder, Inputs},
-    error::Error,
-    events::Dispatching,
-    to_js::to_js,
-};
+use crate::{effects::forced, error::Error, to_js::to_js};
 
-/// Builders running JavaScript: `builtin:runCommand`.
-pub(crate) fn builders(dispatching: &Rc<Dispatching>) -> impl Iterator<Item = (String, Builder)> {
-    let dispatching = Rc::clone(dispatching);
-    let builder: Builder = Rc::new(move |co, inputs, passthru| {
-        let dispatching = Rc::clone(&dispatching);
-        Box::pin(async move { run(co, &dispatching, inputs, passthru).await })
-    });
-
-    iter::once(("builtin:runCommand".to_owned(), builder))
+/// Runs a `runCommand` effect: its `script` with `env` in scope, returning
+/// `$out`. Errors name the command.
+pub(crate) fn run(inputs: &NixAttrs) -> Result<Value, String> {
+    let name = string(inputs, "name")?;
+    run_script(inputs).map_err(|error| format!("Command {name:?} failed: {error}"))
 }
 
-/// Runs the `script` input with `passthru.env` in scope, returning `$out`.
-async fn run(
-    co: &GenCo,
-    dispatching: &Dispatching,
-    inputs: Inputs,
-    passthru: Value,
-) -> Result<Value, String> {
-    // Side effects belong to events, not renders.
-    if dispatching.handling().is_none() {
-        return Err("Cannot runCommand outside an event handler".to_owned());
-    }
-
-    let script = inputs
-        .get("script")
-        .ok_or("Cannot runCommand without a `script`")?;
-
-    let passthru = generators::request_deep_force(co, passthru).await;
-    if passthru.is_catchable() {
-        return Ok(passthru);
-    }
-
-    let env = match &passthru {
-        Value::Null => None,
-        passthru => passthru
-            .to_attrs()
-            .map_err(|error| error.to_string())?
-            .select("env")
-            .cloned(),
-    };
+fn run_script(inputs: &NixAttrs) -> Result<Value, String> {
+    let script = string(inputs, "script")?;
+    let env = inputs
+        .select("env")
+        .map(|env| forced(env).to_attrs())
+        .transpose()
+        .map_err(|error| error.to_string())?;
 
     let mut names = Vec::new();
     let arguments = Array::new();
-    if let Some(env) = env {
-        for (name, value) in env
-            .to_attrs()
-            .map_err(|error| error.to_string())?
-            .iter_sorted()
-        {
-            let name = String::from_utf8_lossy(name.as_bytes());
-            if !is_identifier(&name) || name == "out" {
-                return Err(format!(
-                    "Invalid env {name:?}: must be a JavaScript identifier, other than `out`"
-                ));
-            }
-
-            names.push(format!("${name}"));
-            arguments
-                .push(&to_js(value).map_err(|error| format!("Invalid env {name:?}: {error}"))?);
+    for (name, value) in env.iter().flat_map(NixAttrs::iter_sorted) {
+        let name = String::from_utf8_lossy(name.as_bytes());
+        if !is_identifier(&name) || name == "out" {
+            return Err(format!(
+                "Invalid env {name:?}: must be a JavaScript identifier, other than `out`"
+            ));
         }
+
+        names.push(format!("${name}"));
+        arguments.push(&to_js(value).map_err(|error| format!("Invalid env {name:?}: {error}"))?);
     }
 
-    let out = call(&names, script, &arguments).map_err(|error| Error::from(error).to_string())?;
+    let out = call(&names, &script, &arguments).map_err(|error| Error::from(error).to_string())?;
     if is_thenable(&out) {
         return Err(
             "Invalid `$out`: scripts run synchronously, so `$out` can't be a promise".to_owned(),
@@ -102,6 +59,16 @@ async fn run(
         .unwrap_or_else(|| "null".to_owned());
 
     serde_json::from_str(&json).map_err(|error| format!("Invalid `$out`: {error}"))
+}
+
+/// The string input `name`.
+fn string(inputs: &NixAttrs, name: &str) -> Result<String, String> {
+    let value = inputs
+        .select(name)
+        .map(forced)
+        .ok_or_else(|| format!("Cannot runCommand without a `{name}`"))?;
+    let string = value.to_str().map_err(|error| error.to_string())?;
+    Ok(String::from_utf8_lossy(string.as_bytes()).into_owned())
 }
 
 /// Calls `script` as a function of `names`, returning `$out`. Compiling it

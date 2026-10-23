@@ -1,14 +1,14 @@
 //! Side effects, as derivations. `derivation` describes an effect, and
 //! importing it (import from derivation) runs it:
 //!
-//!   import (io.runCommand "count" { } "$out = 1;")
+//!   import (io.dispatch "increment")
 //!
 //! Where `<web/io>` defines it as:
 //!
 //!   derivation {
-//!     name = "count";
-//!     builder = "builtin:runCommand";
-//!     script = "$out = 1;";
+//!     name = "dispatch";
+//!     builder = "builtin:dispatch";
+//!     action = "increment";
 //!     ...
 //!   }
 //!
