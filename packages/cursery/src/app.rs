@@ -145,13 +145,28 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
 ///
 /// A failure doesn't stop the chain: the next function gets an output that
 /// throws it when forced, so `builtins.tryEval` can recover, and functions
-/// that don't use their output carry on. A failure the chain ends with is
+/// that don't use their output carry on. Once the chain ends, failures
+/// nothing forced are logged, and a failure the chain ends with is
 /// returned. The chain's final value is deep-forced, so failures in it
 /// count too.
 ///
 /// Each step is its own evaluation, so one doesn't force another, and the
 /// same effect twice runs twice rather than hitting the import cache.
 fn run(mount: &Mount, effect: Value) -> Result<(), Error> {
+    let mut passed = Vec::new();
+    let result = run_chain(mount, effect, &mut passed);
+    for message in passed
+        .into_iter()
+        .filter_map(|id| mount.session.failures().settle(id))
+    {
+        web_sys::console::error_1(&format!("Unhandled failure: {message}").into());
+    }
+
+    result
+}
+
+/// Runs the chain for [`run`], recording the IDs of failures it passed on.
+fn run_chain(mount: &Mount, effect: Value, passed: &mut Vec<u64>) -> Result<(), Error> {
     let mut pending = Vec::new();
     let mut current = step(mount, "effects.step value", &[("value", effect)]);
     loop {
@@ -183,11 +198,20 @@ fn run(mount: &Mount, effect: Value) -> Result<(), Error> {
                 "effects.step (next output)",
                 &[("next", next), ("output", output)],
             ),
-            Err(error) => step(
-                mount,
-                "effects.step (next (throw error))",
-                &[("next", next), ("error", Value::from(error.message()))],
-            ),
+            Err(error) => {
+                let message = error.message();
+                let id = mount.session.failures().record(message.clone());
+                passed.push(id);
+                step(
+                    mount,
+                    "effects.step (next (import (effects.failure id message)))",
+                    &[
+                        ("next", next),
+                        ("id", Value::Integer(id.cast_signed())),
+                        ("message", Value::from(message)),
+                    ],
+                )
+            }
         };
     }
 }

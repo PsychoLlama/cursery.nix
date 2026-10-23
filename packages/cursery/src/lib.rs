@@ -5,6 +5,7 @@ mod commands;
 mod derivations;
 mod error;
 mod events;
+mod failures;
 mod memfs;
 mod mounts;
 mod session;

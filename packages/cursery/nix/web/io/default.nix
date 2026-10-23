@@ -51,7 +51,7 @@
 #     (io.runCommand "risky" { } "$out = risky()")
 #
 # The value a chain ends with is forced, so a failure that reaches it is
-# reported.
+# reported. So are failures nothing forced by the time the chain ends.
 #
 # `pipe` threads a value through functions, each getting what the last one
 # returned. When one returns an effect, the next gets its output, once it

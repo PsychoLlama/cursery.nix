@@ -41,4 +41,15 @@ in
   # Runs an effect, given its output path, returning its output. A failed
   # effect throws.
   run = path: import path;
+
+  # A failure passed on to the next function in a chain, which gets it
+  # imported. Forcing it marks it handled, then throws `message` (see
+  # `failures.rs`).
+  failure =
+    id: message:
+    derivation {
+      name = "failure";
+      builder = "builtin:fail";
+      inherit id message;
+    };
 }

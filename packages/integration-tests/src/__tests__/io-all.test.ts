@@ -108,6 +108,18 @@ describe("all", () => {
       expect(globalThis.ran).toEqual([1, 2]);
     });
 
+    it("reports each failure nothing forces", () => {
+      using view = render(nix`io.map (outputs: null) (io.all [
+        (io.runCommand "first" { } "throw new Error('one')")
+        (io.runCommand "second" { } "throw new Error('two')")
+      ])`);
+
+      expect(view.click()).toEqual([
+        "Unhandled failure: Error: one",
+        "Unhandled failure: Error: two",
+      ]);
+    });
+
     it("outputs failures, throwing when forced", () => {
       using view = render(nix`io.map
         (outputs: log (map (output: (builtins.tryEval output).success) outputs))

@@ -117,7 +117,7 @@ describe("pipe", () => {
         (_: log "after")
       ]`);
 
-      expect(view.click()).toEqual([]);
+      expect(view.click()).toEqual(["Unhandled failure: Error: nope"]);
       expect(globalThis.ran).toEqual([1]);
       expect(view.logged()).toEqual(["after"]);
     });

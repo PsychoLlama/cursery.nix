@@ -150,13 +150,22 @@ describe("map", () => {
       expect(globalThis.ran).toEqual([1, 2, 3]);
     });
 
-    it("carries on past failures the function ignores", () => {
+    it("carries on past failures the function ignores, reporting them", () => {
       using view = render(nix`io.map
         (_: push 1)
         (io.runCommand "fail" { } "throw new Error('nope')")`);
 
-      expect(view.click()).toEqual([]);
+      expect(view.click()).toEqual(["Unhandled failure: Error: nope"]);
       expect(globalThis.ran).toEqual([1]);
+    });
+
+    it("doesn't report failures functions return, until forced", () => {
+      using view = render(nix`io.map
+        (output: log (builtins.tryEval output).success)
+        (io.map (output: output) (io.runCommand "fail" { } "throw new Error('nope')"))`);
+
+      expect(view.click()).toEqual([]);
+      expect(view.logged()).toEqual([false]);
     });
 
     it("passes on failures, throwing when forced", () => {
