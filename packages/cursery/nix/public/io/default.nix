@@ -44,6 +44,26 @@
 #
 # Return it from a handler to run it. Each effect runs in turn, after the
 # handler returns. If one fails, the rest of the chain doesn't run.
+#
+# `pipe` threads a value through functions, each getting what the last one
+# returned. When one returns an effect, the next gets its output, once it
+# runs:
+#
+#   io.pipe "milk" [
+#     (text: io.dispatch "add" text)
+#     (state: io.runCommand "log" { inherit state; } "console.log($state)")
+#   ]
+#
+# It returns an effect to run if any function returned one, or else the last
+# function's value.
+#
+# `all` runs effects in order, then outputs a list of their outputs. Other
+# values in the list are outputs already:
+#
+#   io.map (counts: io.dispatch "counted" counts) (io.all [
+#     (io.runCommand "items" { } "$out = document.querySelectorAll('li').length")
+#     (io.runCommand "links" { } "$out = document.links.length")
+#   ])
 
 let
   inherit (import ../../internal/io/effects.nix) isEffect isIo;
@@ -97,8 +117,39 @@ let
         _type = "io";
         inherit source next;
       };
+
+  # Calls `next` with `value`, or with its output if it's an effect.
+  chain = next: value: if isEffect value || isIo value then map next value else next value;
+
+  pipe =
+    init: functions:
+    if !builtins.isList functions then
+      throw "Invalid functions of type ${builtins.typeOf functions}: expected a list"
+    else
+      builtins.foldl' (
+        value: next:
+        if !builtins.isFunction next then
+          throw "Invalid function of type ${builtins.typeOf next}: expected a function of the output"
+        else
+          chain next value
+      ) init functions;
+
+  all =
+    effects:
+    if !builtins.isList effects then
+      throw "Invalid effects of type ${builtins.typeOf effects}: expected a list"
+    else
+      builtins.foldl' (
+        outputs: effect: chain (done: chain (output: done ++ [ output ]) effect) outputs
+      ) [ ] effects;
 in
 
 {
-  inherit dispatch runCommand map;
+  inherit
+    dispatch
+    runCommand
+    map
+    pipe
+    all
+    ;
 }
