@@ -1,6 +1,6 @@
 let
   inherit (import <web/dom>) html svg;
-  inherit (import <web/io>) dispatch runCommand;
+  inherit (import <web/io>) all dispatch runCommand;
   inherit (import <web/style>) css image;
 
   # Shown while hovering its item.
@@ -157,10 +157,12 @@ else
       ];
 
       # Renders the field, then focuses it.
-      on.dblclick = event: [
-        (dispatch "edit" todo.id)
-        (focus (editId todo))
-      ];
+      on.dblclick =
+        event:
+        all [
+          (dispatch "edit" todo.id)
+          (focus (editId todo))
+        ];
     } todo.text)
 
     (html.button {
