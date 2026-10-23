@@ -6,7 +6,6 @@ mod derivations;
 mod effects;
 mod error;
 mod events;
-mod failures;
 mod memfs;
 mod mounts;
 mod session;

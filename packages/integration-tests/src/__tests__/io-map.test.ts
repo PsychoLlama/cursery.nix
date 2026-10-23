@@ -138,42 +138,22 @@ describe("map", () => {
       expect(globalThis.ran).toEqual([1]);
     });
 
-    it("carries on past failures the function ignores, reporting them", () => {
+    it("skips functions after a failure", () => {
       using view = render(nix`io.map
         (_: push 1)
         (io.runCommand "fail" { } "throw new Error('nope')")`);
 
-      expect(view.click()).toEqual([
-        'Unhandled failure: Command "fail" failed: Error: nope',
-      ]);
+      expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
+      expect(globalThis.ran).toBeUndefined();
+    });
+
+    it("fails at values that throw when passed on", () => {
+      using view = render(nix`io.map
+        (_: push 2)
+        (io.map (_: { value = throw "deep"; }) (push 1))`);
+
+      expect(view.click()).toEqual([expect.stringMatching(/deep/)]);
       expect(globalThis.ran).toEqual([1]);
-    });
-
-    it("doesn't report failures functions return, until forced", () => {
-      using view = render(nix`io.map
-        (output: log (builtins.tryEval output).success)
-        (io.map (output: output) (io.runCommand "fail" { } "throw new Error('nope')"))`);
-
-      expect(view.click()).toEqual([]);
-      expect(view.logged()).toEqual([false]);
-    });
-
-    it("passes on failures, throwing when forced", () => {
-      using view = render(nix`io.map
-        (output: log (builtins.tryEval output).success)
-        (io.runCommand "fail" { } "throw new Error('nope')")`);
-
-      expect(view.click()).toEqual([]);
-      expect(view.logged()).toEqual([false]);
-    });
-
-    it("passes on failed functions", () => {
-      using view = render(nix`io.map
-        (output: log (builtins.tryEval output).success)
-        (io.map (_: throw "broken") (push 1))`);
-
-      expect(view.click()).toEqual([]);
-      expect(view.logged()).toEqual([false]);
     });
 
     it("reports failures the chain ends with", () => {
@@ -184,20 +164,15 @@ describe("map", () => {
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
     });
 
-    it("reports failures passed on as thrown, without nesting", () => {
+    it("reports failures as they were, without nesting", () => {
       using view = render(nix`io.map
         (output: output)
         (io.map (output: output) (io.runCommand "fail" { } "throw new Error('nope')"))`);
 
-      const [error, ...rest] = view.click();
-      expect(rest).toEqual([]);
-      expect(error).toMatch(
-        /error thrown: "Command \\"fail\\" failed: Error: nope"/,
-      );
-      expect(error).not.toMatch(/error thrown[^]*error thrown/);
+      expect(view.click()).toEqual(['Command "fail" failed: Error: nope']);
     });
 
-    it("reports failures that effects force", () => {
+    it("skips effects after a failure", () => {
       using view = render(nix`io.map
         (output: log output)
         (io.runCommand "fail" { } "throw new Error('nope')")`);

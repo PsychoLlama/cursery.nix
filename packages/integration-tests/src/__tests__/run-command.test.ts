@@ -139,12 +139,12 @@ describe("runCommand", () => {
     expect(globalThis.ran).toEqual([1, 2]);
   });
 
-  it("passes failures on lazily", () => {
+  it("fails catchably", () => {
     expect(
       logs(
-        nix`io.map (out: log (builtins.tryEval out).success) (io.runCommand "fail" { } "throw new Error('nope')")`,
+        nix`io.catch (error: log error.message) (io.runCommand "fail" { } "throw new Error('nope')")`,
       ),
-    ).toEqual([false]);
+    ).toEqual(['Command "fail" failed: Error: nope']);
   });
 
   describe("errors", () => {

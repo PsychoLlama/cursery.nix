@@ -135,44 +135,21 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
     Ok(())
 }
 
-/// Runs an effect a handler returned, following `io.map` chains: each
-/// source runs before its function is called with the output, and whatever
-/// the function returns runs next. Pending functions wait on a stack, so
-/// nesting goes as deep as it likes.
+/// Runs an effect a handler returned, following `io` chains: each source
+/// runs before its function is called with the output, and whatever the
+/// function returns runs next. Pending functions and `io.catch` handlers
+/// wait on a stack, so nesting goes as deep as it likes.
 ///
-/// A failure doesn't stop the chain: the next function gets an output that
-/// throws it when forced, so `builtins.tryEval` can recover, and functions
-/// that don't use their output carry on. Once the chain ends, failures
-/// nothing forced are logged, and a failure the chain ends with is
-/// returned. The chain's final value is deep-forced, so failures in it
-/// count too.
+/// A failure skips functions until a handler catches it, like a rejected
+/// promise. A failure nothing catches is returned. Values passed on are
+/// deep-forced, so a throw in one fails at the step that made it.
 ///
-/// Each step is its own evaluation, so one doesn't force another, and the
-/// same effect twice runs twice rather than hitting the import cache.
+/// Each step is its own evaluation, so one doesn't force another.
 fn run(container: &Element, mount: &Mount, effect: Value) -> Result<(), Error> {
-    let mut passed = Vec::new();
-    let result = run_chain(container, mount, effect, &mut passed);
-    for message in passed
-        .into_iter()
-        .filter_map(|id| mount.session.failures().settle(id))
-    {
-        web_sys::console::error_1(&format!("Unhandled failure: {message}").into());
-    }
-
-    result
-}
-
-/// Runs the chain for [`run`], recording the IDs of failures it passed on.
-fn run_chain(
-    container: &Element,
-    mount: &Mount,
-    effect: Value,
-    passed: &mut Vec<u64>,
-) -> Result<(), Error> {
     let mut pending = Vec::new();
     let mut current = step(mount, "effects.step value", &[("value", effect)]);
     loop {
-        let output = match current {
+        let mut output = match current {
             Err(error) => Err(error),
             Ok(attrs) => {
                 if let Some(effect) = attrs.select("effect") {
@@ -180,44 +157,50 @@ fn run_chain(
                 } else if let Some(path) = attrs.select("derivation") {
                     evaluate(mount, "effects.run path", &[("path", path.clone())])
                 } else if let Some(source) = attrs.select("source") {
-                    pending.push(select(&attrs, "next")?);
+                    pending.push(match attrs.select("catch") {
+                        Some(catch) => Pending::Catch(catch.clone()),
+                        None => Pending::Next(select(&attrs, "next")?),
+                    });
                     current = step(mount, "effects.step value", &[("value", source.clone())]);
                     continue;
-                } else if pending.is_empty() {
-                    // The end of the chain.
-                    evaluate(mount, "value", &[("value", select(&attrs, "value")?)])
                 } else {
-                    select(&attrs, "value")
+                    evaluate(mount, "value", &[("value", select(&attrs, "value")?)])
                 }
             }
         };
 
-        let Some(next) = pending.pop() else {
-            return output.map(drop);
-        };
-
-        current = match output {
-            Ok(output) => step(
-                mount,
-                "effects.step (next output)",
-                &[("next", next), ("output", output)],
-            ),
-            Err(error) => {
-                let message = error.message();
-                let id = mount.session.failures().record(message.clone());
-                passed.push(id);
-                step(
-                    mount,
-                    "effects.step (next (import (effects.failure id message)))",
-                    &[
-                        ("next", next),
-                        ("id", Value::Integer(id.cast_signed())),
-                        ("message", Value::from(message)),
-                    ],
-                )
-            }
+        // Unwinds to the function or handler that takes the output.
+        current = loop {
+            output = match (pending.pop(), output) {
+                (None, output) => return output.map(drop),
+                (Some(Pending::Next(next)), Ok(output)) => {
+                    break step(
+                        mount,
+                        "effects.step (next output)",
+                        &[("next", next), ("output", output)],
+                    );
+                }
+                (Some(Pending::Catch(catch)), Err(error)) => {
+                    let error = NixAttrs::from_iter([("message", Value::from(error.message()))]);
+                    break step(
+                        mount,
+                        "effects.step (catch error)",
+                        &[("catch", catch), ("error", Value::attrs(error))],
+                    );
+                }
+                (Some(_), output) => output,
+            };
         };
     }
+}
+
+/// What a chain does with the output of the step it's waiting on.
+enum Pending {
+    /// Calls the function with a success.
+    Next(Value),
+
+    /// Calls the `io.catch` handler with a failure.
+    Catch(Value),
 }
 
 /// Strictly evaluates `code` with `effects` and `bindings` in scope.

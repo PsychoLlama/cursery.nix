@@ -31,15 +31,17 @@
 #   '')
 #
 # Return it from a handler to run it. Each effect runs in turn, after the
-# handler returns. Failures don't stop the chain: the function gets an
-# output that throws the failure when forced. Recover with
-# `builtins.tryEval`, or ignore the output to carry on regardless:
+# handler returns. If an effect or function fails, the chain skips ahead to
+# the nearest `catch`, and failures nothing catches are reported. Values a
+# chain passes on are forced, so a throw in one fails where it happens.
 #
-#   io.map (output: if (builtins.tryEval output).success then null else io.dispatch "failed" null)
+# `catch` handles failures, like a promise's `catch`. Its handler gets
+# `{ message; }` and returns a value, an effect or a chain, and the chain
+# carries on from there. Successes pass through untouched:
+#
+#   io.catch (error: io.dispatch "failed" error.message)
 #     (io.runCommand "risky" { } "$out = risky()")
 #
-# The value a chain ends with is forced, so a failure that reaches it is
-# reported. So are failures nothing forced by the time the chain ends.
 #
 # `pipe` threads a value through functions, each getting what the last one
 # returned. When one returns an effect, the next gets its output, once it
@@ -53,9 +55,17 @@
 # It returns an effect to run if any function returned one, or else the last
 # function's value.
 #
-# `all` runs effects in order, then outputs a list of their outputs, even if
-# some fail: failed outputs throw when forced. Other values in the list are
-# outputs already:
+# `io.catch handler` is a step too, handling failures of every step before
+# it. Steps after it get its result:
+#
+#   io.pipe null [
+#     (_: io.runCommand "read" { } "$out = Number(localStorage.count)")
+#     (io.catch (error: 0))
+#     (count: io.dispatch "set" count)
+#   ]
+#
+# `all` runs effects in order, then outputs a list of their outputs. It stops
+# at the first failure. Other values in the list are outputs already:
 #
 #   io.map (counts: io.dispatch "counted" counts) (io.all [
 #     (io.runCommand "items" { } "$out = document.querySelectorAll('li').length")
@@ -98,6 +108,29 @@ let
   # Calls `next` with `value`, or with its output if it's an effect.
   chain = next: value: if isEffect value || isIo value then map next value else next value;
 
+  isCatch = value: builtins.isAttrs value && value._type or null == "catch";
+
+  # Applied to a source, `catch handler` makes a chain. Applied to nothing,
+  # it's a step for `pipe`.
+  catch =
+    handler:
+    if !builtins.isFunction handler then
+      throw "Invalid handler of type ${builtins.typeOf handler}: expected a function of the error"
+    else
+      {
+        _type = "catch";
+        __functor =
+          _: source:
+          if !isEffect source && !isIo source then
+            throw "Invalid source of type ${builtins.typeOf source}: expected an effect, like `io.dispatch`, or an `io` chain"
+          else
+            {
+              _type = "io";
+              inherit source;
+              catch = handler;
+            };
+      };
+
   pipe =
     init: functions:
     if !builtins.isList functions then
@@ -105,8 +138,11 @@ let
     else
       builtins.foldl' (
         value: next:
-        if !builtins.isFunction next then
-          throw "Invalid function of type ${builtins.typeOf next}: expected a function of the output"
+        if isCatch next then
+          # Values that aren't effects can't fail.
+          if isEffect value || isIo value then next value else value
+        else if !builtins.isFunction next then
+          throw "Invalid function of type ${builtins.typeOf next}: expected a function of the output, or `io.catch`"
         else
           chain next value
       ) init functions;
@@ -126,6 +162,7 @@ in
     dispatch
     runCommand
     map
+    catch
     pipe
     all
     ;

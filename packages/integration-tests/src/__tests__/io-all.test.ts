@@ -104,7 +104,7 @@ describe("all", () => {
       expect(view.logged()).toEqual([[1, "b", 20]]);
     });
 
-    it("runs every effect, then reports failures", () => {
+    it("stops at the first failure", () => {
       using view = render(nix`io.all [
         (push 1)
         (io.runCommand "fail" { } "throw new Error('nope')")
@@ -112,31 +112,7 @@ describe("all", () => {
       ]`);
 
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
-      expect(globalThis.ran).toEqual([1, 2]);
-    });
-
-    it("reports each failure nothing forces", () => {
-      using view = render(nix`io.map (outputs: null) (io.all [
-        (io.runCommand "first" { } "throw new Error('one')")
-        (io.runCommand "second" { } "throw new Error('two')")
-      ])`);
-
-      expect(view.click()).toEqual([
-        'Unhandled failure: Command "first" failed: Error: one',
-        'Unhandled failure: Command "second" failed: Error: two',
-      ]);
-    });
-
-    it("outputs failures, throwing when forced", () => {
-      using view = render(nix`io.map
-        (outputs: log (map (output: (builtins.tryEval output).success) outputs))
-        (io.all [
-          (push 1)
-          (io.runCommand "fail" { } "throw new Error('nope')")
-        ])`);
-
-      expect(view.click()).toEqual([]);
-      expect(view.logged()).toEqual([[true, false]]);
+      expect(globalThis.ran).toEqual([1]);
     });
   });
 });

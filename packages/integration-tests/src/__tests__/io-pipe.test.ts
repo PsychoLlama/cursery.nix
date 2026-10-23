@@ -109,18 +109,16 @@ describe("pipe", () => {
       expect(globalThis.ran).toEqual([1, 2, 3]);
     });
 
-    it("passes on failures", () => {
+    it("skips steps after a failure", () => {
       using view = render(nix`io.pipe null [
         (_: io.runCommand "fail" { } "throw new Error('nope')")
         (output: push 1)
         (_: log "after")
       ]`);
 
-      expect(view.click()).toEqual([
-        'Unhandled failure: Command "fail" failed: Error: nope',
-      ]);
-      expect(globalThis.ran).toEqual([1]);
-      expect(view.logged()).toEqual(["after"]);
+      expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
+      expect(globalThis.ran).toBeUndefined();
+      expect(view.logged()).toEqual([]);
     });
   });
 });

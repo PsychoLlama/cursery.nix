@@ -40,7 +40,9 @@ in
   # - `{ derivation; }`: `run` the derivation's output path, then the output
   #   is the value.
   # - `{ source; next; }`: step through `source`, then call `next` with its
-  #   output and step through the result.
+  #   output and step through the result. Failures skip `next`.
+  # - `{ source; catch; }`: step through `source`. If it fails, call `catch`
+  #   with `{ message; }` and step through the result. Successes skip it.
   # - `{ value; }`: nothing. `value` is the output.
   step =
     value:
@@ -48,6 +50,8 @@ in
       { derivation = value.outPath; }
     else if isEffect value then
       builtins.deepSeq value { effect = value; }
+    else if isIo value && value ? catch then
+      { inherit (value) source catch; }
     else if isIo value then
       { inherit (value) source next; }
     else
@@ -56,15 +60,4 @@ in
   # Runs an effect, given its output path, returning its output. A failed
   # effect throws.
   run = path: import path;
-
-  # A failure passed on to the next function in a chain, which gets it
-  # imported. Forcing it marks it handled, then throws `message` (see
-  # `failures.rs`).
-  failure =
-    id: message:
-    derivation {
-      name = "failure";
-      builder = "builtin:fail";
-      inherit id message;
-    };
 }

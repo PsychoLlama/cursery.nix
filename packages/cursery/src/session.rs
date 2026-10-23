@@ -20,7 +20,6 @@ use crate::{
     derivations::{self, Derivations, DerivationsIO},
     error::Error,
     events::Dispatching,
-    failures::Failures,
     memfs::MemoryFilesystem,
     store,
 };
@@ -34,7 +33,6 @@ pub(crate) struct Session {
     source_map: SourceCode,
     derivations: Rc<Derivations>,
     dispatching: Rc<Dispatching>,
-    failures: Rc<Failures>,
 }
 
 impl Session {
@@ -42,8 +40,7 @@ impl Session {
         let (filesystem, bundled_path) = store::snapshot();
         let source_map = SourceCode::default();
         let dispatching = Rc::new(Dispatching::default());
-        let failures = Rc::new(Failures::default());
-        let derivations = Rc::new(Derivations::new(failures.builders()));
+        let derivations = Rc::new(Derivations::new([]));
 
         // Building an evaluation prepares the globals for its source map.
         let globals = builder(&filesystem, &bundled_path, &derivations)
@@ -65,7 +62,6 @@ impl Session {
             source_map,
             derivations,
             dispatching,
-            failures,
         }
     }
 
@@ -77,11 +73,6 @@ impl Session {
     /// Events dispatching to the session.
     pub(crate) fn dispatching(&self) -> &Rc<Dispatching> {
         &self.dispatching
-    }
-
-    /// Failures passed down `io.map` chains.
-    pub(crate) fn failures(&self) -> &Rc<Failures> {
-        &self.failures
     }
 
     /// Evaluate `code`, with `variables` in scope.
