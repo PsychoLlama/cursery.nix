@@ -43,31 +43,15 @@ function errors(view: { get: (selector: string) => HTMLElement }) {
 
 describe("dispatch", () => {
   it("describes an effect", () => {
-    expect(
-      evaluate(nix`let effect = io.dispatch "increment"; in {
-        inherit (effect) _type kind inputs;
-        isFunctor = effect ? __functor;
-      }`),
-    ).toEqual({
-      _type: "effect",
-      kind: "dispatch",
-      inputs: { type: "increment" },
-      isFunctor: true,
-    });
-  });
-
-  it("sets the payload when called", () => {
-    expect(
-      evaluate(nix`let effect = io.dispatch "add" { text = "milk"; }; in {
-        inherit (effect) _type kind inputs;
-        isFunctor = effect ? __functor;
-      }`),
-    ).toEqual({
+    expect(evaluate(nix`io.dispatch "add" { text = "milk"; }`)).toEqual({
       _type: "effect",
       kind: "dispatch",
       inputs: { type: "add", payload: { text: "milk" } },
-      isFunctor: false,
     });
+  });
+
+  it("is a plain function until given a payload", () => {
+    expect(evaluate(nix`builtins.isFunction (io.dispatch "add")`)).toBe(true);
   });
 
   it("keeps the payload as a Nix value", () => {
@@ -89,7 +73,7 @@ describe("dispatch", () => {
         update = state: action: state ++ [ action ];
         render = state: [
           (html.pre (builtins.toJSON state))
-          (html.button { id = "bare"; on.click = event: dispatch "bare"; })
+          (html.button { id = "bare"; on.click = event: dispatch "bare" null; })
           (html.button { id = "full"; on.click = event: dispatch "full" { n = 1; }; })
         ];
       }`);
@@ -98,7 +82,7 @@ describe("dispatch", () => {
       view.get("#full").click();
 
       expect(shown(view)).toEqual([
-        { type: "bare" },
+        { type: "bare", payload: null },
         { type: "full", payload: { n: 1 } },
       ]);
     });
@@ -112,7 +96,7 @@ describe("dispatch", () => {
         render = state: [
           (html.pre (builtins.toJSON state))
           (html.button {
-            on.click = event: io.map (result: dispatch "see" result) (dispatch "increment");
+            on.click = event: io.map (result: dispatch "see" result) (dispatch "increment" null);
           })
         ];
       }`);
@@ -133,7 +117,7 @@ describe("dispatch", () => {
           (html.pre (builtins.toJSON state))
           (html.button {
             on.click = event:
-              let increment = dispatch "increment"; in
+              let increment = dispatch "increment" null; in
               io.map (outputs: if outputs == [ 1 2 ] then null else throw "not run twice")
                 (io.all [ increment increment ]);
           })
@@ -153,7 +137,7 @@ describe("dispatch", () => {
           (html.pre (builtins.toJSON state))
           (html.button {
             on.click = event:
-              io.map (result: if result == 1 then throw "later" else null) (dispatch "increment");
+              io.map (result: if result == 1 then throw "later" else null) (dispatch "increment" null);
           })
         ];
       }`);
@@ -166,12 +150,12 @@ describe("dispatch", () => {
       using view = render(nix`{
         init = { types = [ ]; };
         update = state: action: {
-          effect = dispatch "nested";
+          effect = dispatch "nested" null;
           types = state.types ++ [ action.type ];
         };
         render = state: [
           (html.pre (builtins.toJSON state.types))
-          (html.button { on.click = event: dispatch "outer"; })
+          (html.button { on.click = event: dispatch "outer" null; })
         ];
       }`);
 
@@ -199,7 +183,7 @@ describe("dispatch", () => {
         update = state: action: state + 1;
         render = state: [
           (html.pre (builtins.toJSON state))
-          (html.button { on.click = event: [ (dispatch "increment") ]; })
+          (html.button { on.click = event: [ (dispatch "increment" null) ]; })
         ];
       }`);
 

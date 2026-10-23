@@ -194,7 +194,7 @@ describe("styles", () => {
         update = state: action: true;
         render = state: html.button {
           class = if state then css { color = "plum"; } else null;
-          on.click = event: dispatch "style";
+          on.click = event: dispatch "style" null;
         } "Go";
       }`,
     });

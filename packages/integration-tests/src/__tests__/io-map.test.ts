@@ -64,7 +64,7 @@ describe("map", () => {
 
   it("describes the chain", () => {
     expect(
-      evaluate(nix`let chain = io.map (out: null) (io.dispatch "a"); in {
+      evaluate(nix`let chain = io.map (out: null) (io.dispatch "a" null); in {
         inherit (chain) _type;
         source = chain.source.inputs.type;
         next = builtins.isFunction chain.next;
@@ -73,7 +73,7 @@ describe("map", () => {
   });
 
   it("validates the function", () => {
-    expect(() => evaluate(nix`io.map 1 (io.dispatch "a")`)).toThrow(
+    expect(() => evaluate(nix`io.map 1 (io.dispatch "a" null)`)).toThrow(
       /Invalid function of type int/,
     );
   });

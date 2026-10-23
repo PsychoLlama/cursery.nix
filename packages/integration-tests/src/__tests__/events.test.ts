@@ -124,7 +124,7 @@ describe("events", () => {
         else state // { draft = action.payload; };
       render = state: [
         (html.input { value = state.draft; on.input = event: dispatch "edit" event.target.value; })
-        (html.button { on.click = event: dispatch "add"; } "Add")
+        (html.button { on.click = event: dispatch "add" null; } "Add")
         (map html.li state.todos)
       ];
     }`);
@@ -213,8 +213,8 @@ describe("events", () => {
         else state // { log = state.log ++ [ action.type ]; };
       render = state: [
         (html.pre (builtins.toJSON state.log))
-        (html.button { id = "show"; on.click = event: dispatch "show"; })
-        (html.button { id = "other"; on.click = event: dispatch "clicked"; })
+        (html.button { id = "show"; on.click = event: dispatch "show" null; })
+        (html.button { id = "other"; on.click = event: dispatch "clicked" null; })
         (if state.shown then (import <web/dom>).element "click-on-connect" else null)
       ];
     }`);
@@ -281,8 +281,8 @@ describe("events", () => {
         init = { count = 0; };
         update = state: action:
           if action.type == "boom" then throw "update failed" else { count = 1; };
-        render = state: html.p { on.click = event: dispatch "ok"; } [
-          (html.button { on.click = event: dispatch "boom"; } state.count)
+        render = state: html.p { on.click = event: dispatch "ok" null; } [
+          (html.button { on.click = event: dispatch "boom" null; } state.count)
         ];
       }`);
 
@@ -301,7 +301,7 @@ describe("events", () => {
 
     it("logs when an app without `update` dispatches", () => {
       using view = render(nix`{
-        render = state: html.button { on.click = event: dispatch "action"; };
+        render = state: html.button { on.click = event: dispatch "action" null; };
       }`);
 
       expect(click(view)).toEqual([
@@ -315,7 +315,7 @@ describe("events", () => {
         update = state: action: state + 1;
         render = state:
           if state > 0 then throw "render failed"
-          else html.button { on.click = event: dispatch "next"; } state;
+          else html.button { on.click = event: dispatch "next" null; } state;
       }`);
 
       expect(click(view)).toEqual([expect.stringMatching(/render failed/)]);

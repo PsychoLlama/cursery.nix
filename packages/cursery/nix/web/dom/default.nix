@@ -17,11 +17,11 @@
 # Handlers in `on` take a snapshot of the event and return an effect, like
 # `io.dispatch` from `<web/io>`, or `null` to ignore the event:
 #
-#   html.button { on.click = event: io.dispatch "increment"; } "+"
+#   html.button { on.click = event: io.dispatch "increment" null; } "+"
 #
 # Combine effects with `io.all` and friends to run several:
 #
-#   html.form { on.submit = event: io.all [ event.preventDefault (io.dispatch "save") ]; }
+#   html.form { on.submit = event: io.all [ event.preventDefault (io.dispatch "save" null) ]; }
 #
 # Snapshots describe effects on the event too:
 #

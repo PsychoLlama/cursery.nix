@@ -7,8 +7,7 @@
 #     init = { count = 0; };
 #
 #     # Returns the next state, given the current one and an action
-#     # dispatched with `io.dispatch` from `<web/io>`:
-#     # `{ type; payload; }`, without `payload` if none was given.
+#     # dispatched with `io.dispatch` from `<web/io>`: `{ type; payload; }`.
 #     update = state: action: state;
 #
 #     # Returns children, like any element accepts.

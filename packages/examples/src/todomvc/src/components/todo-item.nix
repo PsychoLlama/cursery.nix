@@ -135,7 +135,7 @@ if editing then
         if event.key == "Enter" then
           save todo event
         else if event.key == "Escape" then
-          dispatch "cancel"
+          dispatch "cancel" null
         else
           null;
       on.blur = save todo;

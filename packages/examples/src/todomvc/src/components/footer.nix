@@ -55,7 +55,7 @@ html.footer { class = footer; } [
     if anyCompleted then
       html.button {
         class = clear;
-        on.click = event: dispatch "clearCompleted";
+        on.click = event: dispatch "clearCompleted" null;
       } "Clear completed"
     else
       null

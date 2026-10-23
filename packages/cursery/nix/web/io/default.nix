@@ -1,13 +1,12 @@
 # Side effects. Return them from handlers to run them.
 #
-# `dispatch` describes dispatching an action to the app's `update`. Call it
-# again to give the action a payload:
+# `dispatch` describes dispatching an action to the app's `update`, given
+# its type and payload. Pass `null` for no payload:
 #
-#   io.dispatch "increment"
+#   io.dispatch "increment" null
 #   io.dispatch "add" { text = "milk"; }
 #
-# `update` gets `{ type; payload; }`, without `payload` if none was given.
-# Return a dispatch from a handler to run it: it updates, renders, then
+# `update` gets `{ type; payload; }`. Return a dispatch from a handler to run it: it updates, renders, then
 # outputs the next state. The payload is forced with it, so a throw in it
 # fails the dispatch.
 #
@@ -36,7 +35,7 @@
 # output that throws the failure when forced. Recover with
 # `builtins.tryEval`, or ignore the output to carry on regardless:
 #
-#   io.map (output: if (builtins.tryEval output).success then null else io.dispatch "failed")
+#   io.map (output: if (builtins.tryEval output).success then null else io.dispatch "failed" null)
 #     (io.runCommand "risky" { } "$out = risky()")
 #
 # The value a chain ends with is forced, so a failure that reaches it is
@@ -71,10 +70,7 @@ let
     if !builtins.isString type then
       throw "Invalid action type of type ${builtins.typeOf type}: expected a string"
     else
-      effect "dispatch" { inherit type; }
-      // {
-        __functor = _: payload: effect "dispatch" { inherit type payload; };
-      };
+      payload: effect "dispatch" { inherit type payload; };
 
   runCommand =
     name: env: script:

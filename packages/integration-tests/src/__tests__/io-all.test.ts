@@ -71,7 +71,7 @@ describe("all", () => {
   });
 
   it("validates the effects", () => {
-    expect(() => evaluate(nix`io.all (io.dispatch "a")`)).toThrow(
+    expect(() => evaluate(nix`io.all (io.dispatch "a" null)`)).toThrow(
       /Invalid effects of type set: expected a list/,
     );
   });
