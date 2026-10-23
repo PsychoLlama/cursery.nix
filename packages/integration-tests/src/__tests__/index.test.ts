@@ -98,7 +98,9 @@ describe("evaluate", () => {
     });
 
     it("only resolves the `web` prefix", () => {
-      expect(() => cursery.evaluate(nix`import <public>`)).toThrow(/public/);
+      expect(() => cursery.evaluate(nix`import <internal>`)).toThrow(
+        /internal/,
+      );
     });
   });
 });

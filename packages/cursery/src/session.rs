@@ -127,9 +127,6 @@ fn builder<'env>(
     Evaluation::builder_pure()
         .io_handle(io)
         .enable_import()
-        // Only `public/` is exposed, keeping internal modules out of `<web/...>`.
-        .nix_path(Some(format!(
-            "web={}",
-            bundled_path.join("public").display()
-        )))
+        // Only `web/` is exposed, keeping internal modules out of `<web/...>`.
+        .nix_path(Some(format!("web={}", bundled_path.join("web").display())))
 }
