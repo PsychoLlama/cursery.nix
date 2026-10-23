@@ -141,6 +141,73 @@ describe("renderToString", () => {
     });
   });
 
+  describe("properties", () => {
+    it("renders input values and checks as attributes", () => {
+      expect(
+        body(nix`[
+          (html.input { value = "a\\"b"; checked = true; })
+          (html.input { value = null; checked = false; })
+        ]`),
+      ).toBe('<input checked="" value="a&quot;b"><input>');
+    });
+
+    it("renders textarea values as text, replacing children", () => {
+      expect(body(nix`html.textarea { value = "<a>"; } "ignored"`)).toBe(
+        "<textarea>&lt;a&gt;</textarea>",
+      );
+      expect(body(nix`html.textarea { value = null; } "ignored"`)).toBe(
+        "<textarea></textarea>",
+      );
+      expect(body(nix`html.textarea "default"`)).toBe(
+        "<textarea>default</textarea>",
+      );
+    });
+
+    it("selects the first option matching a select's value", () => {
+      expect(
+        body(nix`html.select { value = "b"; } [
+          (html.option { value = "a"; selected = true; } "A")
+          (html.optgroup [
+            (html.option { value = "b"; } "B")
+            (html.option { value = "b"; } "B again")
+          ])
+        ]`),
+      ).toBe(
+        '<select><option value="a">A</option><optgroup><option value="b" selected="">B</option><option value="b">B again</option></optgroup></select>',
+      );
+    });
+
+    it("matches options by text without a value", () => {
+      expect(
+        body(nix`html.select { value = "B c"; } [
+          (html.option "A")
+          (html.option "  B\n  c ")
+        ]`),
+      ).toBe(
+        '<select><option>A</option><option selected="">  B\n  c </option></select>',
+      );
+    });
+
+    it("keeps options' own selection without a select value", () => {
+      expect(
+        body(nix`html.select [
+          (html.option "A")
+          (html.option { selected = true; } "B")
+        ]`),
+      ).toBe(
+        '<select><option>A</option><option selected="">B</option></select>',
+      );
+    });
+  });
+
+  it("keeps leading newlines in pre and textarea", () => {
+    expect(
+      body(
+        nix`[ (html.pre "\nA") (html.textarea { value = "\nB"; }) (html.pre "C") ]`,
+      ),
+    ).toBe("<pre>\n\nA</pre><textarea>\n\nB</textarea><pre>C</pre>");
+  });
+
   describe("void elements", () => {
     it("have no closing tag", () => {
       expect(body(nix`[ html.br (html.img { src = "a.png"; }) ]`)).toBe(

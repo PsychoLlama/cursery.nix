@@ -168,13 +168,9 @@ impl Attributes {
                 continue;
             };
 
-            let value = match (name, value) {
-                // Booleans arrive as `""` for true and null for false.
-                ("checked" | "selected", value) => {
-                    JsValue::from_bool(!matches!(value, Value::Null))
-                }
-                (_, Value::Null) => JsValue::from_str(""),
-                (_, value) => JsValue::from_str(utf8(&string(&value)?)?),
+            let value = match value {
+                Value::Null => None,
+                value => Some(string(&value)?),
             };
 
             properties.push(Property { name, value });
@@ -184,19 +180,26 @@ impl Attributes {
     }
 }
 
-/// An attribute set as a property.
+/// An attribute set as a property. Booleans arrive as `""` for true and
+/// `None` for false.
 pub(super) struct Property {
-    name: &'static str,
-    value: JsValue,
+    pub(super) name: &'static str,
+    pub(super) value: Option<NixString>,
 }
 
 impl Property {
     /// Sets the property on `element`, unless it already holds the value.
     /// Setting an input's value moves the caret, even to the same value.
     pub(super) fn set(&self, element: &web_sys::Element) -> Result<(), Error> {
+        let value = match (self.name, &self.value) {
+            ("checked" | "selected", value) => JsValue::from_bool(value.is_some()),
+            (_, None) => JsValue::from_str(""),
+            (_, Some(value)) => JsValue::from_str(utf8(value)?),
+        };
+
         let name = JsValue::from_str(self.name);
-        if Reflect::get(element, &name)? != self.value {
-            Reflect::set(element, &name, &self.value)?;
+        if Reflect::get(element, &name)? != value {
+            Reflect::set(element, &name, &value)?;
         }
 
         Ok(())
