@@ -6,6 +6,7 @@
 //! - `patch`: updates DOM nodes from one tree to the next.
 //! - `handlers`: finds event handlers for events in the DOM.
 //! - `styles`: loads the CSS of styles in a tree.
+//! - `serialize`: writes a page as HTML, for server renders.
 //!
 //! Either way, an invalid tree fails before the DOM changes.
 
@@ -13,6 +14,7 @@ mod create;
 pub(crate) mod handlers;
 mod node;
 mod patch;
+pub(crate) mod serialize;
 pub(crate) mod styles;
 
 use snix_eval::Value;

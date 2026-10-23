@@ -7,6 +7,7 @@ mod error;
 mod events;
 mod memfs;
 mod mounts;
+mod server;
 mod session;
 mod store;
 mod store_path;
@@ -18,7 +19,7 @@ use std::{
     rc::Rc,
 };
 
-use js_sys::{Array, Object};
+use js_sys::{Array, JSON, Object};
 use snix_eval::EvalMode;
 use wasm_bindgen::prelude::*;
 use web_sys::Element;
@@ -38,6 +39,10 @@ extern "C" {
     /// Nix sources keyed by path, e.g. from `import.meta.glob`.
     #[wasm_bindgen(typescript_type = "Record<string, string>")]
     pub type NixFiles;
+
+    /// Inputs for a server render, as JSON would have them.
+    #[wasm_bindgen(typescript_type = "Record<string, unknown>")]
+    pub type ServerInputs;
 }
 
 /// Load Nix files into the store and return their store path, e.g.
@@ -138,6 +143,43 @@ pub fn unmount(container: &Element) -> Result<(), JsError> {
     mounts::remove(container)?;
     container.replace_children_with_node_0();
     Ok(())
+}
+
+/// Render a page to HTML, e.g. on a server. `path` is its entrypoint: a
+/// `default.nix`, or a directory containing one, from a path returned by
+/// `load`.
+///
+/// The entrypoint is a function of `inputs`, data like bundle URLs from the
+/// build, as JSON would have them. It returns the whole page, as an `html`
+/// element. The page is prefixed with `<!doctype html>`, and nothing else:
+///
+/// ```nix
+/// { bundles, ... }:
+/// let inherit (import <web/dom>) html; in
+/// html.html { lang = "en"; } [
+///   (html.head (map (src: html.script { type = "module"; inherit src; }) bundles))
+///   (html.body (html.h1 "Hello"))
+/// ]
+/// ```
+///
+/// Handlers are dropped. Scripts can't have children, since their text
+/// would run, and styles can't contain `</style`.
+///
+/// # Errors
+///
+/// Throws if `inputs` isn't JSON data, or the page fails to evaluate or
+/// isn't a valid `html` element.
+#[wasm_bindgen(js_name = renderToString)]
+pub fn render_to_string(path: &str, inputs: Option<ServerInputs>) -> Result<String, JsError> {
+    let inputs = match inputs {
+        None => "{}".to_owned(),
+        Some(inputs) => JSON::stringify(&inputs)
+            .map_err(Error::from)?
+            .as_string()
+            .ok_or(Error::InvalidInputs)?,
+    };
+
+    Ok(server::render(path, &inputs)?)
 }
 
 fn read_files(files: &NixFiles) -> Result<Files, Error> {

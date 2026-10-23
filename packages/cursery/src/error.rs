@@ -54,6 +54,12 @@ pub(crate) enum Error {
     #[error("Invalid node: {0}")]
     InvalidNodeType(#[from] ErrorKind),
 
+    #[error("Invalid page: {0}")]
+    InvalidPage(String),
+
+    #[error("Invalid inputs: expected JSON data")]
+    InvalidInputs,
+
     #[error("Invalid CSS for class {0:?}: {1}")]
     InvalidStyle(String, Box<Error>),
 
