@@ -19,10 +19,9 @@
 #
 #   html.button { on.click = event: io.dispatch "increment"; } "+"
 #
-# Return a list to run several effects in order. If one fails, later ones
-# don't run:
+# Combine effects with `io.all` and friends to run several:
 #
-#   html.form { on.submit = event: [ (event.preventDefault { }) (io.dispatch "save") ]; }
+#   html.form { on.submit = event: io.all [ (event.preventDefault { }) (io.dispatch "save") ]; }
 #
 # Snapshots describe effects on the event too, run by importing them:
 #
@@ -58,9 +57,8 @@ let
     else
       throw "Invalid attribute \"${name}\" of type ${builtins.typeOf value}: expected a string, number, boolean, or null";
 
-  # Event handlers take an event and return an effect, `null` to ignore it,
-  # or a list of those. A `null` handler overrides an earlier one, like
-  # attributes.
+  # Event handlers take an event and return an effect, or `null` to ignore
+  # it. A `null` handler overrides an earlier one, like attributes.
   handler =
     name: value:
     if builtins.isFunction value || value == null then

@@ -95,9 +95,9 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
 }
 
 /// Handles `event` for the app mounted into `container`, calling each
-/// handler in turn and running the effects it returns, in order (see
-/// [`run`]). `builtin:dispatch` renders as it goes: if an effect fails,
-/// earlier ones stay rendered and later ones don't run.
+/// handler in turn and running the effect it returns (see [`run`]).
+/// `builtin:dispatch` renders as it goes: if an effect fails, earlier ones
+/// stay rendered.
 ///
 /// Events fired while committing are ignored, e.g. `blur` from removing a
 /// focused element. They're artifacts of patching, not things people did,
@@ -120,7 +120,7 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
     let dispatch = mount.session.dispatching().start(container, event);
     let event = events::snapshot(event, &dispatch)?;
     for handler in handlers {
-        let effects = mount.session.evaluate(
+        let effect = mount.session.evaluate(
             "renderer.handle handler event",
             &[
                 ("renderer", mount.renderer.clone()),
@@ -130,8 +130,8 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
             EvalMode::Strict,
         )?;
 
-        for effect in &effects.to_list()? {
-            run(&mount, effect.clone())?;
+        if !is_null(&effect) {
+            run(&mount, effect)?;
         }
     }
 

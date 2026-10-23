@@ -139,17 +139,6 @@ describe("map", () => {
       expect(globalThis.ran).toEqual([1]);
     });
 
-    it("runs chains in lists", () => {
-      using view = render(nix`[
-        (io.map (_: push 2) (push 1))
-        (push 3)
-      ]`);
-
-      view.click();
-
-      expect(globalThis.ran).toEqual([1, 2, 3]);
-    });
-
     it("carries on past failures the function ignores, reporting them", () => {
       using view = render(nix`io.map
         (_: push 1)

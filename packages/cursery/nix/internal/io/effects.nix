@@ -6,21 +6,19 @@ let
   isEffect = value: builtins.isAttrs value && value.type or null == "derivation";
   isIo = value: builtins.isAttrs value && value._type or null == "io";
 
-  # Flattens what a handler returned into a list of effects.
-  flatten =
+  # Checks what a handler returned: an effect, an `io.map` chain, or null.
+  check =
     value:
-    if builtins.isList value then
-      builtins.concatMap flatten value
-    else if value == null then
-      [ ]
-    else if isEffect value || isIo value then
-      [ value ]
+    if value == null || isEffect value || isIo value then
+      value
+    else if builtins.isList value then
+      throw "Invalid handler result of type list: return `io.all` to run several effects"
     else
-      throw "Invalid handler result of type ${builtins.typeOf value}: expected an effect, like `io.dispatch` or `io.map`, null, or a list of those";
+      throw "Invalid handler result of type ${builtins.typeOf value}: expected an effect, like `io.dispatch` or `io.map`, or null";
 in
 
 {
-  inherit isEffect isIo flatten;
+  inherit isEffect isIo check;
 
   # What running `value` takes next:
   #

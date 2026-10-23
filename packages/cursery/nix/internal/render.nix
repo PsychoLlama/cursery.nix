@@ -81,9 +81,9 @@ in
     };
 
   # Calls an event handler. It returns an effect to run, like `io.dispatch`
-  # or `io.map`, `null` to ignore the event, or a list of those to run in
-  # order. Returns the effects, for Rust to run (see `io/effects.nix`).
-  handle = handler: snapshot: effects.flatten (handler (event snapshot));
+  # or `io.map`, or `null` to ignore the event. Returns the effect, for Rust
+  # to run (see `io/effects.nix`).
+  handle = handler: snapshot: effects.check (handler (event snapshot));
 
   # Applies an action to what `mount` or `update` kept, for
   # `builtin:dispatch`.

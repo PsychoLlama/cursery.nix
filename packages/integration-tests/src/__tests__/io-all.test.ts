@@ -85,6 +85,14 @@ describe("all", () => {
       expect(globalThis.ran).toEqual([1, 2, 3]);
     });
 
+    it("runs the same effect twice", () => {
+      using view = render(nix`let once = push 1; in io.all [ once once ]`);
+
+      view.click();
+
+      expect(globalThis.ran).toEqual([1, 1]);
+    });
+
     it("outputs a list of outputs", () => {
       using view = render(nix`io.map (outputs: log outputs) (io.all [
         (push "a")
