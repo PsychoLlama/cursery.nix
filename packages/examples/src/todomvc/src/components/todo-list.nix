@@ -4,11 +4,11 @@ let
 
   todoItem = import ./todo-item.nix;
 
-  list = css {
-    margin = 0;
-    padding = 0;
-    list-style = "none";
-  };
+  list = css ''
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  '';
 in
 
 { todos, editing }:

@@ -72,6 +72,12 @@ pub(crate) fn load(container: &Element, children: &Value) -> Result<(), Error> {
                         .map_err(|error| {
                             Error::InvalidStyle(class.to_owned(), Box::new(error.into()))
                         })?;
+
+                    if !is_scoped(&state.sheet, index, class)? {
+                        state.sheet.delete_rule(index)?;
+                        return Err(Error::UnscopedStyle(class.to_owned()));
+                    }
+
                     state.loaded.insert(name, css);
                 }
             }
@@ -79,6 +85,20 @@ pub(crate) fn load(container: &Element, children: &Value) -> Result<(), Error> {
 
         adopt(&root(container)?, &state.sheet)
     })
+}
+
+/// Whether the rule at `index`, a class's layer, holds only the class's rule.
+/// CSS can close that rule early and style something else, e.g.
+/// `color: red; } body { color: blue`, and still parse.
+fn is_scoped(sheet: &CssStyleSheet, index: u32, class: &str) -> Result<bool, Error> {
+    let layer = Reflect::get_u32(&sheet.css_rules()?.into(), index)?;
+    let rules = Reflect::get(&layer, &"cssRules".into())?;
+    if Reflect::get(&rules, &"length".into())?.as_f64() != Some(1.0) {
+        return Ok(false);
+    }
+
+    let selector = Reflect::get(&Reflect::get_u32(&rules, 0)?, &"selectorText".into())?;
+    Ok(selector.as_string() == Some(format!(".{class}")))
 }
 
 /// An app's global styles, adopted until dropped.

@@ -2,12 +2,11 @@ import * as cursery from "cursery";
 
 import { load, mount, nix } from "../testing.ts";
 
-/** The CSS `css` generates for `rules`, with its class name as `.s`. */
-function css(rules: string): string {
-  const style = cursery.evaluate(nix`(import <web/style>).css (${rules})`) as {
-    name: string;
-    css: string;
-  };
+/** The CSS `css` generates for `body`, with its class name as `.s`. */
+function css(body: string): string {
+  const style = cursery.evaluate(nix`let
+    style = (import <web/style>).css (${body});
+  in { inherit (style) name css; }`) as { name: string; css: string };
 
   return style.css.replaceAll(style.name, "s");
 }
@@ -34,62 +33,48 @@ function loaded(root: Document | ShadowRoot = document): string[] {
 }
 
 describe("css", () => {
-  it("scopes declarations to a class", () => {
-    expect(css(nix`{ color = "red"; border-radius = "1rem"; }`)).toBe(
-      "@layer components { .s { border-radius: 1rem; color: red; } }",
+  it("scopes the CSS to a class", () => {
+    expect(css(nix`"color: red; border-radius: 1rem;"`)).toBe(
+      "@layer components { .s { color: red; border-radius: 1rem; } }",
     );
   });
 
-  it("names classes by their rules", () => {
-    const name = (rules: string) =>
-      cursery.evaluate(nix`((import <web/style>).css (${rules})).name`);
-
-    expect(name(nix`{ color = "red"; }`)).toMatch(/^s-[0-9a-f]{8}$/);
-    expect(name(nix`{ color = "red"; }`)).toBe(name(nix`{ color = "red"; }`));
-    expect(name(nix`{ color = "red"; }`)).not.toBe(
-      name(nix`{ color = "blue"; }`),
-    );
-  });
-
-  it("repeats declarations for lists, in order", () => {
-    expect(css(nix`{ display = [ "-webkit-box" "flex" ]; }`)).toBe(
-      "@layer components { .s { display: -webkit-box; display: flex; } }",
-    );
-  });
-
-  it("writes numbers as they are", () => {
-    expect(css(nix`{ opacity = 0.5; z-index = 10; }`)).toBe(
-      "@layer components { .s { opacity: 0.5; z-index: 10; } }",
-    );
-  });
-
-  it("omits null values", () => {
-    expect(css(nix`{ color = null; margin = [ null "0" ]; }`)).toBe(
-      "@layer components { .s { margin: 0; } }",
-    );
-  });
-
-  it("nests selectors and at-rules after declarations", () => {
+  it("keeps the CSS as written, nesting and all", () => {
     expect(
-      css(nix`{
-        "&:hover"."&:active".color = "red";
-        "@media (width < 40rem)".padding = "0";
-        padding = "1rem";
-      }`),
+      css(nix`''
+        padding: 1rem;
+        &:hover { color: red; }
+        @media (width < 40rem) { padding: 0; }
+      ''`),
     ).toBe(
-      "@layer components { .s { padding: 1rem; &:hover { &:active { color: red; } } @media (width < 40rem) { padding: 0; } } }",
+      "@layer components { .s { padding: 1rem;\n&:hover { color: red; }\n@media (width < 40rem) { padding: 0; }\n } }",
     );
   });
 
-  it("rejects invalid values", () => {
-    expect(() => css(nix`{ color = true; }`)).toThrow(
-      /Invalid value for \W*color\W* of type bool/,
-    );
+  it("names classes by their CSS", () => {
+    const name = (body: string) =>
+      cursery.evaluate(nix`((import <web/style>).css (${body})).name`);
+
+    expect(name(nix`"color: red;"`)).toMatch(/^s-[0-9a-f]{8}$/);
+    expect(name(nix`"color: red;"`)).toBe(name(nix`"color: red;"`));
+    expect(name(nix`"color: red;"`)).not.toBe(name(nix`"color: blue;"`));
   });
 
-  it("rejects rules that aren't attrsets", () => {
-    expect(() => css(nix`"color: red"`)).toThrow(
-      /Invalid rules of type string/,
+  it("interpolates as its selector", () => {
+    const { icon, card } = cursery.evaluate(nix`let
+      inherit (import <web/style>) css;
+      icon = css "width: 1rem;";
+    in {
+      icon = icon.name;
+      card = (css "&:has(\${icon}) { padding: 0; }").css;
+    }`) as { icon: string; card: string };
+
+    expect(card).toContain(`&:has(.${icon}) { padding: 0; }`);
+  });
+
+  it("rejects CSS that isn't a string", () => {
+    expect(() => css(nix`{ color = "red"; }`)).toThrow(
+      /Invalid CSS of type set: expected a string/,
     );
   });
 });
@@ -142,39 +127,35 @@ describe("image", () => {
       /handlers can't run there/,
     );
     expect(() =>
-      image(
-        nix`svg.svg { class = (import <web/style>).css { fill = "red"; }; }`,
-      ),
+      image(nix`svg.svg { class = (import <web/style>).css "fill: red;"; }`),
     ).toThrow(/styles don't apply there/);
   });
 });
 
 describe("styles", () => {
   it("sets the class name", () => {
-    using view = render(
-      nix`html.p { class = [ (css { color = "red"; }) "x" ]; }`,
-    );
+    using view = render(nix`html.p { class = [ (css "color: red;") "x" ]; }`);
     const name = cursery.evaluate(
-      nix`((import <web/style>).css { color = "red"; }).name`,
+      nix`((import <web/style>).css "color: red;").name`,
     );
 
     expect(view.container.innerHTML).toBe(`<p class="${name} x"></p>`);
   });
 
   it("accepts a style without a list", () => {
-    using view = render(nix`html.p { class = css { color = "tan"; }; }`);
+    using view = render(nix`html.p { class = css "color: tan;"; }`);
 
     expect(view.container.querySelector("p")!.className).toMatch(/^s-/);
   });
 
   it("loads the CSS of rendered styles", () => {
-    using _ = render(nix`html.p { class = css { color = "olive"; }; }`);
+    using _ = render(nix`html.p { class = css "color: olive;"; }`);
 
     expect(loaded()).toContainEqual(expect.stringMatching(/color: olive;/));
   });
 
   it("loads each class once", () => {
-    const style = nix`(css { color = "teal"; })`;
+    const style = nix`(css "color: teal;")`;
     using _ = render(
       nix`html.div { class = ${style}; } (html.p { class = ${style}; })`,
     );
@@ -193,7 +174,7 @@ describe("styles", () => {
         init = false;
         update = state: action: true;
         render = state: html.button {
-          class = if state then css { color = "plum"; } else null;
+          class = if state then css "color: plum;" else null;
           on.click = event: dispatch "style" null;
         } "Go";
       }`,
@@ -206,10 +187,10 @@ describe("styles", () => {
   });
 
   it("adopts the sheet again if it's removed", () => {
-    using _ = render(nix`html.p { class = css { color = "navy"; }; }`);
+    using _ = render(nix`html.p { class = css "color: navy;"; }`);
     document.adoptedStyleSheets = [];
 
-    using _again = render(nix`html.p { class = css { color = "navy"; }; }`);
+    using _again = render(nix`html.p { class = css "color: navy;"; }`);
 
     expect(loaded()).toContainEqual(expect.stringMatching(/color: navy;/));
   });
@@ -218,7 +199,7 @@ describe("styles", () => {
     const other = new CSSStyleSheet();
     document.adoptedStyleSheets = [other];
 
-    using _ = render(nix`html.p { class = css { color = "gold"; }; }`);
+    using _ = render(nix`html.p { class = css "color: gold;"; }`);
 
     expect(document.adoptedStyleSheets[0]).toBe(other);
     expect(loaded()).toContainEqual(expect.stringMatching(/color: gold;/));
@@ -233,7 +214,7 @@ describe("styles", () => {
         inherit (import <web/dom>) html;
         inherit (import <web/style>) css;
       in {
-        render = state: html.p { class = css { color = "pink"; }; };
+        render = state: html.p { class = css "color: pink;"; };
       }`,
     });
 
@@ -244,13 +225,20 @@ describe("styles", () => {
 
   it("rejects different styles with the same name", () => {
     const style = (color: string) =>
-      nix`{ _type = "style"; name = "s-same"; css = ".s-same { color: ${color}; }"; }`;
+      nix`{ _type = "style"; name = "s-same"; css = "@layer components { .s-same { color: ${color}; } }"; }`;
 
     using _ = render(nix`html.p { class = ${style("red")}; }`);
 
     expect(() => render(nix`html.p { class = ${style("blue")}; }`)).toThrow(
       /Different styles hash to the same class name "s-same"/,
     );
+  });
+
+  it("rejects CSS that closes the class's rule", () => {
+    expect(() =>
+      render(nix`html.p { class = css "color: red; } body { color: blue"; }`),
+    ).toThrow(/Invalid CSS for class "s-\w+": it can't close the class's rule/);
+    expect(loaded().join()).not.toMatch(/blue/);
   });
 
   it("rejects CSS that doesn't parse", () => {
@@ -263,14 +251,14 @@ describe("styles", () => {
 
   it("drops styles replaced by a later `class`", () => {
     using _ = render(
-      nix`(html.p { class = css { color = "coral"; }; }) { class = "x"; }`,
+      nix`(html.p { class = css "color: coral;"; }) { class = "x"; }`,
     );
 
     expect(loaded().join()).not.toMatch(/coral/);
   });
 
   it("rejects styles as children", () => {
-    expect(() => render(nix`html.p (css { color = "red"; })`)).toThrow(
+    expect(() => render(nix`html.p (css "color: red;")`)).toThrow(
       /styles go in `class`/,
     );
   });
@@ -283,8 +271,8 @@ describe("global styles", () => {
       "default.nix": nix`{ styles = ${styles}; render = state: "hi"; }`,
     });
 
-  it("adopts rules for selectors in `@layer base`", () => {
-    using styled = app(nix`{ body.margin = "1rem"; }`);
+  it("adopts the CSS in `@layer base`", () => {
+    using styled = app(nix`"body { margin: 1rem; }"`);
     using _ = mount(styled.path);
 
     expect(loaded()).toContainEqual(
@@ -292,20 +280,17 @@ describe("global styles", () => {
     );
   });
 
-  it("repeats blocks for lists of rules", () => {
-    using styled = app(nix`{
-      "@font-face" = [ { font-family = "One"; } { font-family = "Two"; } ];
-    }`);
+  it("keeps rules in order", () => {
+    using styled = app(nix`"b { color: red; } a { color: red; }"`);
     using _ = mount(styled.path);
-    const rule = loaded().find((rule) => rule.includes("One"));
+    const rule = loaded().find((rule) => rule.startsWith("@layer base"))!;
 
-    expect(rule).toMatch(/@font-face \{ font-family: One; \}/);
-    expect(rule).toMatch(/@font-face \{ font-family: Two; \}/);
+    expect(rule.indexOf("b {")).toBeLessThan(rule.indexOf("a {"));
   });
 
   it("replaces rules when mounting again", () => {
-    using before = app(nix`{ body.color = "maroon"; }`);
-    using after = app(nix`{ body.color = "salmon"; }`);
+    using before = app(nix`"body { color: maroon; }"`);
+    using after = app(nix`"body { color: salmon; }"`);
     using view = mount(before.path);
 
     cursery.mount(view.container, after.path);
@@ -315,7 +300,7 @@ describe("global styles", () => {
   });
 
   it("keeps the sheet while rules are unchanged", () => {
-    using styled = app(nix`{ body.color = "khaki"; }`);
+    using styled = app(nix`"body { color: khaki; }"`);
     using view = mount(styled.path);
     const [sheet] = document.adoptedStyleSheets.slice(-1);
 
@@ -326,7 +311,7 @@ describe("global styles", () => {
   });
 
   it("removes rules the app no longer has", () => {
-    using styled = app(nix`{ body.color = "orchid"; }`);
+    using styled = app(nix`"body { color: orchid; }"`);
     using plain = load({ "default.nix": nix`{ render = state: "hi"; }` });
     using view = mount(styled.path);
 
@@ -336,7 +321,7 @@ describe("global styles", () => {
   });
 
   it("removes rules on unmount", () => {
-    using styled = app(nix`{ body.color = "sienna"; }`);
+    using styled = app(nix`"body { color: sienna; }"`);
     const { container } = mount(styled.path);
 
     cursery.unmount(container);
@@ -345,9 +330,9 @@ describe("global styles", () => {
   });
 
   it("keeps rules when mounting fails", () => {
-    using styled = app(nix`{ body.color = "indigo"; }`);
+    using styled = app(nix`"body { color: indigo; }"`);
     using broken = load({
-      "default.nix": nix`{ styles.body.color = "lime"; render = state: throw "boom"; }`,
+      "default.nix": nix`{ styles = "body { color: lime; }"; render = state: throw "boom"; }`,
     });
     using view = mount(styled.path);
 
@@ -359,23 +344,17 @@ describe("global styles", () => {
   it("adopts rules in shadow roots", () => {
     const root = document.createElement("div").attachShadow({ mode: "open" });
     const container = root.appendChild(document.createElement("div"));
-    using styled = app(nix`{ body.color = "peru"; }`);
+    using styled = app(nix`"body { color: peru; }"`);
     using _ = mount(styled.path, { container });
 
     expect(loaded(root).join()).toMatch(/peru/);
   });
 
-  it("rejects declarations without a selector", () => {
-    using styled = app(nix`{ color = "red"; }`);
+  it("rejects styles that aren't strings", () => {
+    using styled = app(nix`{ body.margin = 0; }`);
 
     expect(() => mount(styled.path)).toThrow(
-      /Invalid global style \W*color\W*: expected a selector/,
+      /Invalid `styles` of type set: expected a string of CSS/,
     );
-  });
-
-  it("rejects styles that aren't attrsets", () => {
-    using styled = app(nix`"body { margin: 0; }"`);
-
-    expect(() => mount(styled.path)).toThrow(/Invalid `styles` of type string/);
   });
 });

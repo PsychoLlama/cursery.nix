@@ -13,18 +13,16 @@
 #     # Returns children, like any element accepts.
 #     render = state: html.p "Hello";
 #
-#     # Rules for selectors, as `css` from `<web/style>` takes them. They go
-#     # in `@layer base`, with Tailwind's preflight, so utilities override
-#     # them.
-#     styles = {
-#       body.margin = 0;
-#       ":root"."--accent" = "tan";
-#     };
+#     # Global CSS. It goes in `@layer base`, with Tailwind's preflight, so
+#     # utilities override it.
+#     styles = ''
+#       body { margin: 0; }
+#       :root { --accent: tan; }
+#     '';
 #   }
 
 let
   children = import ./children.nix;
-  css = import ./css.nix;
   effects = import ./io/effects.nix;
   event = import ./io/event.nix;
 
@@ -36,8 +34,8 @@ let
       throw "Apps with `init` or `update` must define both"
     else if app ? update && !builtins.isFunction app.update then
       throw "Invalid `update` of type ${builtins.typeOf app.update}: expected a function"
-    else if app ? styles && !builtins.isAttrs app.styles then
-      throw "Invalid `styles` of type ${builtins.typeOf app.styles}: expected an attrset of selectors"
+    else if app ? styles && !builtins.isString app.styles then
+      throw "Invalid `styles` of type ${builtins.typeOf app.styles}: expected a string of CSS"
     else if app ? render && !builtins.isFunction app.render then
       throw "Invalid `render` of type ${builtins.typeOf app.render}: expected a function"
     else
@@ -77,8 +75,7 @@ builtins.seq checked {
     {
       children = view next;
       kept = next;
-      styles =
-        if checked.styles or { } == { } then null else "@layer base { ${css.global checked.styles} }";
+      styles = if checked.styles or "" == "" then null else "@layer base { ${checked.styles} }";
     };
 
   # Calls an event handler. It returns an effect to run, like `io.dispatch`

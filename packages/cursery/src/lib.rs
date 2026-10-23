@@ -133,9 +133,8 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// dispatch outputs. If a handler or `update` fails, the error is logged;
 /// earlier dispatches stay rendered.
 ///
-/// `styles` holds global rules by selector, as `css` from `<web/style>`
-/// takes them, e.g. `styles.body.margin = 0;`. They're adopted by the
-/// container's root while the app is mounted.
+/// `styles` holds global CSS, e.g. `styles = "body { margin: 0; }";`. It's
+/// adopted by the container's root while the app is mounted.
 ///
 /// `options.effects` are what the app can do beyond updating, by name, for
 /// `io.call` to run. They're plain JS, and can return promises:

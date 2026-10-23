@@ -66,6 +66,9 @@ pub(crate) enum Error {
     #[error("Invalid CSS for class {0:?}: {1}")]
     InvalidStyle(String, Box<Error>),
 
+    #[error("Invalid CSS for class {0:?}: it can't close the class's rule")]
+    UnscopedStyle(String),
+
     #[error("Invalid global styles: {0}")]
     InvalidGlobalStyle(Box<Error>),
 

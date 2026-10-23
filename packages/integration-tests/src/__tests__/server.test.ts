@@ -54,17 +54,17 @@ describe("render", () => {
 
   describe("styles", () => {
     it("includes global styles", () => {
-      expect(render(nix`{ styles.body.margin = 0; }`).styles).toBe(
+      expect(render(nix`{ styles = "body { margin: 0; }"; }`).styles).toBe(
         "@layer base { body { margin: 0; } }",
       );
     });
 
     it("includes classes once, in tree order", () => {
       const { styles } = render(nix`let
-        a = style.css { color = "red"; };
-        b = style.css { color = "blue"; };
+        a = style.css "color: red;";
+        b = style.css "color: blue;";
       in {
-        styles.body.margin = 0;
+        styles = "body { margin: 0; }";
         render = _: html.div { class = b; } [
           (html.p { class = a; })
           (html.p { class = [ b a ]; })
