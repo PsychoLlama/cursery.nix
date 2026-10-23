@@ -237,7 +237,7 @@ describe("styles", () => {
       }`,
     });
 
-    using _ = mount(app.path, container);
+    using _ = mount(app.path, { container });
 
     expect(loaded(root)).toContainEqual(expect.stringMatching(/color: pink;/));
   });
@@ -360,7 +360,7 @@ describe("global styles", () => {
     const root = document.createElement("div").attachShadow({ mode: "open" });
     const container = root.appendChild(document.createElement("div"));
     using styled = app(nix`{ body.color = "peru"; }`);
-    using _ = mount(styled.path, container);
+    using _ = mount(styled.path, { container });
 
     expect(loaded(root).join()).toMatch(/peru/);
   });

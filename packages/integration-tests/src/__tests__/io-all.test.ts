@@ -7,10 +7,21 @@ function evaluate(code: string) {
   return cursery.evaluate(nix`let io = import <web/io>; in ${code}`);
 }
 
+/** Effects for `io.call`. */
+const effects = {
+  /** Pushes `value` to `globalThis.ran`, returning the new length. */
+  push: (value: unknown) => (globalThis.ran ??= []).push(value),
+  fail: () => {
+    throw new Error("nope");
+  },
+  ten: () => 10,
+  double: (n: number) => n * 2,
+};
+
 /**
  * Mounts an app with a button running `handler`, with `io`, `log`
- * (dispatching a `log` action), and `push` (a command pushing its `value`
- * to `globalThis.ran`) in scope. Logged payloads show in a `<pre>`.
+ * (dispatching a `log` action), and `push` (an effect pushing its input to
+ * `globalThis.ran`) in scope. Logged payloads show in a `<pre>`.
  */
 function render(handler: string) {
   using resources = new DisposableStack();
@@ -20,9 +31,7 @@ function render(handler: string) {
         inherit (import <web/dom>) html;
         io = import <web/io>;
         log = io.dispatch "log";
-        push = value: io.runCommand "push" { inherit value; } ''
-          $out = (globalThis.ran ??= []).push($value);
-        '';
+        push = io.call "push";
       in {
         init = [ ];
         update = state: action: state ++ [ action.payload ];
@@ -33,7 +42,7 @@ function render(handler: string) {
       }`,
     }),
   );
-  const { container } = resources.use(mount(path));
+  const { container } = resources.use(mount(path, { effects }));
   const owned = resources.move();
 
   return {
@@ -53,7 +62,7 @@ function render(handler: string) {
 }
 
 declare global {
-  /** What `push` commands pushed. */
+  /** What `push` pushed. */
   var ran: unknown[] | undefined;
 }
 
@@ -107,7 +116,7 @@ describe("all", () => {
     it("stops at the first failure", () => {
       using view = render(nix`io.all [
         (push 1)
-        (io.runCommand "fail" { } "throw new Error('nope')")
+        (io.call "fail" null)
         (push 2)
       ]`);
 

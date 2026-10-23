@@ -3,9 +3,11 @@
 use std::{cell::Cell, iter, path::PathBuf, rc::Rc};
 
 use snix_eval::{EvalMode, NixAttrs, Value};
+use wasm_bindgen::JsValue;
 use web_sys::{Element, Event};
 
 use crate::{
+    calls::Calls,
     effects,
     error::Error,
     events::{self, Listeners},
@@ -23,7 +25,8 @@ thread_local! {
 }
 
 /// See the `mount` export.
-pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
+pub(crate) fn mount(container: &Element, path: &str, options: &JsValue) -> Result<(), Error> {
+    let calls = Calls::new(options)?;
     let session = Session::new();
     let previous = mounts::get(container);
 
@@ -82,6 +85,7 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
         session: Rc::new(session),
         renderer,
         effects,
+        calls,
         tree: field(&result, "children")?,
         kept: field(&result, "kept")?,
         listeners,

@@ -1,6 +1,6 @@
 let
   inherit (import <web/dom>) html svg;
-  inherit (import <web/io>) all dispatch runCommand;
+  inherit (import <web/io>) all call dispatch;
   inherit (import <web/style>) css image;
 
   # Shown while hovering its item.
@@ -109,8 +109,8 @@ let
     text-decoration = "line-through";
   };
 
-  # Fields only autofocus on page load, so this runs a script to focus one.
-  focus = id: runCommand "focus" { inherit id; } "document.getElementById($id).focus()";
+  # Fields only autofocus on page load, so this calls `main.ts` to focus one.
+  focus = call "focus";
 
   # Ids of edit fields, for `focus`.
   editId = todo: "edit-${toString todo.id}";

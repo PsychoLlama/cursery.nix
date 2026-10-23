@@ -83,7 +83,7 @@ describe("mount", () => {
     container.innerHTML = "<p>old</p>";
     using files = app(nix`{ render = state: "new"; }`);
 
-    using _ = mount(files.path, container);
+    using _ = mount(files.path, { container });
 
     expect(container.innerHTML).toBe("new");
   });
@@ -550,7 +550,7 @@ describe("state", () => {
     cursery.mount(container, first.path);
     cursery.unmount(container);
 
-    using _ = mount(second.path, container);
+    using _ = mount(second.path, { container });
 
     expect(container.textContent).toBe('{"count":2}');
   });
@@ -574,7 +574,7 @@ describe("unmount", () => {
     cursery.unmount(container);
 
     container.innerHTML = "<p>unmanaged</p>";
-    using _ = mount(files.path, container);
+    using _ = mount(files.path, { container });
 
     expect(container.innerHTML).toBe("new");
   });

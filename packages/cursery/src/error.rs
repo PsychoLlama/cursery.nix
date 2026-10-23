@@ -35,7 +35,10 @@ pub(crate) enum Error {
     #[error("Invalid effect: {0}")]
     InvalidEffect(String),
 
-    /// An effect failed, e.g. a command threw.
+    #[error("Invalid mount options: {0}")]
+    InvalidOptions(String),
+
+    /// An effect failed, e.g. a call threw.
     #[error("{0}")]
     Effect(String),
 

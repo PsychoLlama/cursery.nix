@@ -7,10 +7,21 @@ function evaluate(code: string) {
   return cursery.evaluate(nix`let io = import <web/io>; in ${code}`);
 }
 
+/** Effects for `io.call`. */
+const effects = {
+  /** Pushes `value` to `globalThis.ran`, returning the new length. */
+  push: (value: unknown) => (globalThis.ran ??= []).push(value),
+  fail: () => {
+    throw new Error("nope");
+  },
+  ten: () => 10,
+  double: (n: number) => n * 2,
+};
+
 /**
  * Mounts an app with a button running `handler`, with `io`, `log`
- * (dispatching a `log` action), and `push` (a command pushing its `value`
- * to `globalThis.ran`) in scope. Logged payloads show in a `<pre>`.
+ * (dispatching a `log` action), and `push` (an effect pushing its input to
+ * `globalThis.ran`) in scope. Logged payloads show in a `<pre>`.
  */
 function render(handler: string) {
   using resources = new DisposableStack();
@@ -20,9 +31,7 @@ function render(handler: string) {
         inherit (import <web/dom>) html;
         io = import <web/io>;
         log = io.dispatch "log";
-        push = value: io.runCommand "push" { inherit value; } ''
-          $out = (globalThis.ran ??= []).push($value);
-        '';
+        push = io.call "push";
       in {
         init = [ ];
         update = state: action: state ++ [ action.payload ];
@@ -33,7 +42,7 @@ function render(handler: string) {
       }`,
     }),
   );
-  const { container } = resources.use(mount(path));
+  const { container } = resources.use(mount(path, { effects }));
   const owned = resources.move();
 
   return {
@@ -53,12 +62,12 @@ function render(handler: string) {
 }
 
 declare global {
-  /** What `push` commands pushed. */
+  /** What `push` pushed. */
   var ran: unknown[] | undefined;
 }
 
 /** A command that fails. */
-const fail = nix`(io.runCommand "fail" { } "throw new Error('nope')")`;
+const fail = nix`(io.call "fail" null)`;
 
 describe("catch", () => {
   afterEach(() => {
@@ -93,14 +102,14 @@ describe("catch", () => {
 
       expect(view.click()).toEqual([]);
       expect(view.logged()).toEqual([
-        { message: 'Command "fail" failed: Error: nope' },
+        { message: 'Effect "fail" failed: Error: nope' },
       ]);
     });
 
     it("passes successes through", () => {
       using view =
         render(nix`io.map (out: log out) (io.catch (error: log "caught")
-        (io.runCommand "ten" { } "$out = 10;"))`);
+        (io.call "ten" null))`);
 
       view.click();
 
@@ -182,7 +191,7 @@ describe("catch", () => {
 
     it("passes successes to later steps", () => {
       using view = render(nix`io.pipe null [
-        (_: io.runCommand "ten" { } "$out = 10;")
+        (_: io.call "ten" null)
         (io.catch (error: 0))
         (n: log n)
       ]`);

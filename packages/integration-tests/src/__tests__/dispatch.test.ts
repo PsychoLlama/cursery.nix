@@ -198,11 +198,13 @@ describe("dispatch", () => {
     it("throws errors of returned effects", () => {
       using view = render(nix`{
         render = state: html.button {
-          on.click = event: io.runCommand "fail" { } "throw new Error('nope')";
+          on.click = event: io.call "missing" null;
         };
       }`);
 
-      expect(errors(view)).toEqual([expect.stringMatching(/Error: nope/)]);
+      expect(errors(view)).toEqual([
+        expect.stringMatching(/No effect "missing"/),
+      ]);
     });
 
     it("throws errors from the payload", () => {

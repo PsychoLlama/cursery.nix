@@ -10,25 +10,20 @@
 # outputs the next state. The payload is forced with it, so a throw in it
 # fails the dispatch.
 #
-# `runCommand` runs JavaScript, like nixpkgs' `runCommand` runs a shell
-# script. Assign the result to `$out`. Each attr of `env` is in scope as
-# `$<name>`:
+# `call` describes calling an effect the host passed to `mount` in
+# `effects`, given its name and input. The input is converted to JS:
 #
-#   io.runCommand "double" { count = 3; } ''
-#     $out = $count * 2;
-#   ''
+#   io.call "focus" "#input"
 #
-# Return it from a handler to run it. Its output is `$out`, as JSON would
-# have it. Scripts run synchronously, so `$out` can't be a promise. Errors
-# name the command.
+# Return it from a handler to run it. Its output is what the effect
+# returned, as JSON would have it. Effects run synchronously, so they can't
+# return a promise. Errors name the effect.
 #
 # `map` sequences effects. It runs an effect, then calls a function with its
 # output. If the function returns another effect, or another `map`, that
 # runs next; any other value ends the chain:
 #
-#   io.map (count: io.dispatch "set" count) (io.runCommand "count" { } ''
-#     $out = document.querySelectorAll("li").length;
-#   '')
+#   io.map (count: io.dispatch "set" count) (io.call "count" "li")
 #
 # Return it from a handler to run it. Each effect runs in turn, after the
 # handler returns. If an effect or function fails, the chain skips ahead to
@@ -40,7 +35,7 @@
 # carries on from there. Successes pass through untouched:
 #
 #   io.catch (error: io.dispatch "failed" error.message)
-#     (io.runCommand "risky" { } "$out = risky()")
+#     (io.call "risky" null)
 #
 #
 # `pipe` threads a value through functions, each getting what the last one
@@ -49,7 +44,7 @@
 #
 #   io.pipe "milk" [
 #     (text: io.dispatch "add" text)
-#     (state: io.runCommand "log" { inherit state; } "console.log($state)")
+#     (state: io.call "log" state)
 #   ]
 #
 # It returns an effect to run if any function returned one, or else the last
@@ -59,7 +54,7 @@
 # it. Steps after it get its result:
 #
 #   io.pipe null [
-#     (_: io.runCommand "read" { } "$out = Number(localStorage.count)")
+#     (_: io.call "read" "count")
 #     (io.catch (error: 0))
 #     (count: io.dispatch "set" count)
 #   ]
@@ -68,8 +63,8 @@
 # at the first failure. Other values in the list are outputs already:
 #
 #   io.map (counts: io.dispatch "counted" counts) (io.all [
-#     (io.runCommand "items" { } "$out = document.querySelectorAll('li').length")
-#     (io.runCommand "links" { } "$out = document.links.length")
+#     (io.call "count" "li")
+#     (io.call "count" "a")
 #   ])
 
 let
@@ -82,16 +77,12 @@ let
     else
       payload: effect "dispatch" { inherit type payload; };
 
-  runCommand =
-    name: env: script:
+  call =
+    name:
     if !builtins.isString name then
-      throw "Invalid command name of type ${builtins.typeOf name}: expected a string"
-    else if !builtins.isAttrs env then
-      throw "Invalid env of type ${builtins.typeOf env}: expected an attrset"
-    else if !builtins.isString script then
-      throw "Invalid script of type ${builtins.typeOf script}: expected a string"
+      throw "Invalid effect name of type ${builtins.typeOf name}: expected a string"
     else
-      effect "runCommand" { inherit name env script; };
+      input: effect "call" { inherit name input; };
 
   map =
     next: source:
@@ -160,7 +151,7 @@ in
 {
   inherit
     dispatch
-    runCommand
+    call
     map
     catch
     pipe

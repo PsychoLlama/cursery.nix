@@ -1,7 +1,7 @@
 //! WASM bindings for evaluating Nix.
 
 mod app;
-mod commands;
+mod calls;
 mod effects;
 mod error;
 mod events;
@@ -26,6 +26,19 @@ use web_sys::Element;
 
 use crate::{error::Error, memfs::Files, session::Session, to_js::to_js};
 
+#[wasm_bindgen(typescript_custom_section)]
+const MOUNT_OPTIONS: &str = r#"
+/** Options for `mount`. */
+export interface MountOptions {
+  /**
+   * Effects the app runs with `io.call` from `<web/io>`, by name. Each gets
+   * the input from Nix, converted to JS, and returns the output, as JSON
+   * would have it.
+   */
+  effects?: Record<string, (input: any) => unknown>;
+}
+"#;
+
 /// Runs once when the module is instantiated.
 #[wasm_bindgen(start)]
 fn start() {
@@ -39,6 +52,10 @@ extern "C" {
     /// Nix sources keyed by path, e.g. from `import.meta.glob`.
     #[wasm_bindgen(typescript_type = "Record<string, string>")]
     pub type NixFiles;
+
+    /// Options for `mount`.
+    #[wasm_bindgen(typescript_type = "MountOptions")]
+    pub type MountOptions;
 
     /// Inputs for a server render, as JSON would have them.
     #[wasm_bindgen(typescript_type = "Record<string, unknown>")]
@@ -120,17 +137,33 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// takes them, e.g. `styles.body.margin = 0;`. They're adopted by the
 /// container's root while the app is mounted.
 ///
+/// `options.effects` are what the app can do beyond updating, by name, for
+/// `io.call` to run. They're plain JS, called synchronously:
+///
+/// ```js
+/// mount(container, path, {
+///   effects: { focus: (selector) => document.querySelector(selector).focus() },
+/// });
+/// ```
+///
 /// The first mount replaces the container's contents. Mounting again, e.g.
 /// with a hot-reloaded `path`, updates the app in place: the DOM is patched
 /// to match the new render, and state carries over, ignoring the new `init`.
+/// The new options replace the old ones.
 ///
 /// # Errors
 ///
 /// Throws if the app is invalid, fails to evaluate, or renders an invalid
-/// tree. The container and state are left untouched.
+/// tree, or an effect isn't a function. The container and state are left
+/// untouched.
 #[wasm_bindgen]
-pub fn mount(container: &Element, path: &str) -> Result<(), JsError> {
-    Ok(app::mount(container, path)?)
+pub fn mount(
+    container: &Element,
+    path: &str,
+    options: Option<MountOptions>,
+) -> Result<(), JsError> {
+    let options = options.map_or(JsValue::UNDEFINED, Into::into);
+    Ok(app::mount(container, path, &options)?)
 }
 
 /// Remove the app mounted into `container`, clearing its contents.

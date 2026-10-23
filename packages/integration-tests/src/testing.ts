@@ -24,12 +24,18 @@ export function load(files: Record<string, string>) {
   return { path, [Symbol.dispose]: () => cursery.unload(path) };
 }
 
-/** Mounts `path` into `container`, unmounting it once disposed. */
+/**
+ * Mounts `path` into `container`, or a new `<div>`, with `options`,
+ * unmounting it once disposed.
+ */
 export function mount(
   path: string,
-  container: HTMLElement = document.createElement("div"),
+  {
+    container = document.createElement("div"),
+    ...options
+  }: cursery.MountOptions & { container?: HTMLElement } = {},
 ) {
-  cursery.mount(container, path);
+  cursery.mount(container, path, options);
 
   return { container, [Symbol.dispose]: () => cursery.unmount(container) };
 }

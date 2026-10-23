@@ -6,7 +6,7 @@
 use snix_eval::{NixAttrs, Value};
 use web_sys::Element;
 
-use crate::{app, commands, error::Error, mounts::Mount};
+use crate::{app, error::Error, mounts::Mount};
 
 /// Runs `effect` for the app in `container`, returning its output.
 pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<Value, Error> {
@@ -28,7 +28,7 @@ pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<
                 Value::Null
             })
             .map_err(Error::Effect),
-        "runCommand" => commands::run(&inputs).map_err(Error::Effect),
+        "call" => mount.calls.run(&inputs).map_err(Error::Effect),
         // The inputs are the action: `{ type; payload; }`.
         "dispatch" => app::update(container, Value::attrs(inputs)),
         kind => Err(Error::Effect(format!("Unknown effect {kind:?}"))),

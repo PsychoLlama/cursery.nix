@@ -8,7 +8,9 @@ use std::{cell::RefCell, rc::Rc};
 use snix_eval::Value;
 use web_sys::Element;
 
-use crate::{error::Error, events::Listeners, session::Session, virtual_dom::styles::Globals};
+use crate::{
+    calls::Calls, error::Error, events::Listeners, session::Session, virtual_dom::styles::Globals,
+};
 
 thread_local! {
     /// wasm is single-threaded, so this is effectively a global.
@@ -25,6 +27,9 @@ pub(crate) struct Mount {
 
     /// `internal/io/effects.nix`, for running what handlers return.
     pub(crate) effects: Value,
+
+    /// The effects passed to `mount`, for `io.call`.
+    pub(crate) calls: Calls,
 
     /// The children last rendered into the container.
     pub(crate) tree: Value,

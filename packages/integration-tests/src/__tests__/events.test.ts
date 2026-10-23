@@ -258,7 +258,7 @@ describe("events", () => {
     const errors: unknown[] = [];
     const report = (event: ErrorEvent) => errors.push(event.error);
     window.addEventListener("error", report);
-    using _ = mount(files.path, container);
+    using _ = mount(files.path, { container });
     container.querySelector("button")!.click();
     window.removeEventListener("error", report);
 

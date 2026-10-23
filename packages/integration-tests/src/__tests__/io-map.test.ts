@@ -7,10 +7,21 @@ function evaluate(code: string) {
   return cursery.evaluate(nix`let io = import <web/io>; in ${code}`);
 }
 
+/** Effects for `io.call`. */
+const effects = {
+  /** Pushes `value` to `globalThis.ran`, returning the new length. */
+  push: (value: unknown) => (globalThis.ran ??= []).push(value),
+  fail: () => {
+    throw new Error("nope");
+  },
+  ten: () => 10,
+  double: (n: number) => n * 2,
+};
+
 /**
  * Mounts an app with a button running `handler`, with `io`, `log`
- * (dispatching a `log` action), and `push` (a command pushing its `value`
- * to `globalThis.ran`) in scope. Logged payloads show in a `<pre>`.
+ * (dispatching a `log` action), and `push` (an effect pushing its input to
+ * `globalThis.ran`) in scope. Logged payloads show in a `<pre>`.
  */
 function render(handler: string) {
   using resources = new DisposableStack();
@@ -20,9 +31,7 @@ function render(handler: string) {
         inherit (import <web/dom>) html;
         io = import <web/io>;
         log = io.dispatch "log";
-        push = value: io.runCommand "push" { inherit value; } ''
-          $out = (globalThis.ran ??= []).push($value);
-        '';
+        push = io.call "push";
       in {
         init = [ ];
         update = state: action: state ++ [ action.payload ];
@@ -33,7 +42,7 @@ function render(handler: string) {
       }`,
     }),
   );
-  const { container } = resources.use(mount(path));
+  const { container } = resources.use(mount(path, { effects }));
   const owned = resources.move();
 
   return {
@@ -53,7 +62,7 @@ function render(handler: string) {
 }
 
 declare global {
-  /** What `push` commands pushed. */
+  /** What `push` pushed. */
   var ran: unknown[] | undefined;
 }
 
@@ -86,9 +95,7 @@ describe("map", () => {
 
   describe("running", () => {
     it("passes the output to the function", () => {
-      using view = render(
-        nix`io.map (out: log out) (io.runCommand "ten" { } "$out = 10;")`,
-      );
+      using view = render(nix`io.map (out: log out) (io.call "ten" null)`);
 
       expect(view.click()).toEqual([]);
       expect(view.logged()).toEqual([10]);
@@ -141,7 +148,7 @@ describe("map", () => {
     it("skips functions after a failure", () => {
       using view = render(nix`io.map
         (_: push 1)
-        (io.runCommand "fail" { } "throw new Error('nope')")`);
+        (io.call "fail" null)`);
 
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
       expect(globalThis.ran).toBeUndefined();
@@ -159,7 +166,7 @@ describe("map", () => {
     it("reports failures the chain ends with", () => {
       using view = render(nix`io.map
         (output: output)
-        (io.runCommand "fail" { } "throw new Error('nope')")`);
+        (io.call "fail" null)`);
 
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
     });
@@ -167,15 +174,15 @@ describe("map", () => {
     it("reports failures with their messages", () => {
       using view = render(nix`io.map
         (output: output)
-        (io.map (output: output) (io.runCommand "fail" { } "throw new Error('nope')"))`);
+        (io.map (output: output) (io.call "fail" null))`);
 
-      expect(view.click()).toEqual(['Command "fail" failed: Error: nope']);
+      expect(view.click()).toEqual(['Effect "fail" failed: Error: nope']);
     });
 
     it("skips effects after a failure", () => {
       using view = render(nix`io.map
         (output: log output)
-        (io.runCommand "fail" { } "throw new Error('nope')")`);
+        (io.call "fail" null)`);
 
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
       expect(view.logged()).toEqual([]);
