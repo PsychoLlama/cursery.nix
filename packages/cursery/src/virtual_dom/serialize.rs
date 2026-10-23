@@ -134,22 +134,7 @@ fn element(element: &Element, select: &mut Option<Select>, html: &mut String) ->
 
     let content = html.len();
     if !foreign && tag == "style" {
-        for child in &children {
-            let Node::Text(text) = child else {
-                return Err(Error::InvalidNode(
-                    "<style> can only contain text".to_owned(),
-                ));
-            };
-
-            let text = utf8(text)?;
-            if text.to_ascii_lowercase().contains("</style") {
-                return Err(Error::InvalidNode(
-                    "<style> can't contain \"</style\"".to_owned(),
-                ));
-            }
-
-            html.push_str(text);
-        }
+        style(&children, html)?;
     } else if let Some(value) = property("value").filter(|_| tag == "textarea") {
         escape(value.map_or(Ok(""), utf8)?, &['&', '<', '>'], html);
     } else if let Some(value) = property("value").filter(|_| tag == "select") {
@@ -179,6 +164,28 @@ fn element(element: &Element, select: &mut Option<Select>, html: &mut String) ->
     html.push_str("</");
     html.push_str(tag);
     html.push('>');
+    Ok(())
+}
+
+/// Writes a style's text as is, so it can't close the style early.
+fn style(children: &[Node], html: &mut String) -> Result<(), Error> {
+    for child in children {
+        let Node::Text(text) = child else {
+            return Err(Error::InvalidNode(
+                "<style> can only contain text".to_owned(),
+            ));
+        };
+
+        let text = utf8(text)?;
+        if text.to_ascii_lowercase().contains("</style") {
+            return Err(Error::InvalidNode(
+                "<style> can't contain \"</style\"".to_owned(),
+            ));
+        }
+
+        html.push_str(text);
+    }
+
     Ok(())
 }
 

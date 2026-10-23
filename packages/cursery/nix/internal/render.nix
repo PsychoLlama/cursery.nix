@@ -53,7 +53,9 @@ let
   view = kept: children.normalize (render (if kept == null then { } else kept.state));
 in
 
-{
+# Checks the app up front. snix's `or` falls back on errors, so
+# `checked.render or ...` alone would hide an invalid app.
+builtins.seq checked {
   # Renders the app, given what the previous `mount` kept: `null` on the first
   # mount, then `{ state }` from apps with state. Reloads keep that state,
   # ignoring `init`, as long as the app still has state. `styles` is the CSS

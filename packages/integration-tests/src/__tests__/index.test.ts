@@ -87,6 +87,7 @@ describe("evaluate", () => {
       expect(cursery.evaluate(nix`builtins.attrNames (import <web>)`)).toEqual([
         "dom",
         "io",
+        "server",
         "style",
       ]);
     });
