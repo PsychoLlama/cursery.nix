@@ -15,7 +15,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rolldownOptions: {
-      external: ["cursery", /^vite(\/|$)/],
+      external: ["cursery", /^vite(\/|$)/, /^node:/],
       // Every export is annotated, so oxc generates declarations without a
       // type checker.
       plugins: [dts({ generator: "oxc" })],
