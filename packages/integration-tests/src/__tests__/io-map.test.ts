@@ -150,13 +150,59 @@ describe("map", () => {
       expect(globalThis.ran).toEqual([1, 2, 3]);
     });
 
-    it("stops at the first failed effect", () => {
+    it("carries on past failures the function ignores", () => {
       using view = render(nix`io.map
         (_: push 1)
         (io.runCommand "fail" { } "throw new Error('nope')")`);
 
+      expect(view.click()).toEqual([]);
+      expect(globalThis.ran).toEqual([1]);
+    });
+
+    it("passes on failures, throwing when forced", () => {
+      using view = render(nix`io.map
+        (output: log (builtins.tryEval output).success)
+        (io.runCommand "fail" { } "throw new Error('nope')")`);
+
+      expect(view.click()).toEqual([]);
+      expect(view.logged()).toEqual([false]);
+    });
+
+    it("passes on failed functions", () => {
+      using view = render(nix`io.map
+        (output: log (builtins.tryEval output).success)
+        (io.map (_: throw "broken") (push 1))`);
+
+      expect(view.click()).toEqual([]);
+      expect(view.logged()).toEqual([false]);
+    });
+
+    it("reports failures the chain ends with", () => {
+      using view = render(nix`io.map
+        (output: output)
+        (io.runCommand "fail" { } "throw new Error('nope')")`);
+
       expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
-      expect(globalThis.ran).toBeUndefined();
+    });
+
+    it("reports failures passed on as thrown, without nesting", () => {
+      using view = render(nix`io.map
+        (output: output)
+        (io.map (output: output) (io.runCommand "fail" { } "throw new Error('nope')"))`);
+
+      const [error, ...rest] = view.click();
+      expect(rest).toEqual([]);
+      expect(error).toMatch(/error thrown: "Error: nope"/);
+      expect(error).not.toMatch(/error thrown[^]*error thrown/);
+    });
+
+    it("reports failures that effects force", () => {
+      using view = render(nix`io.map
+        (output: log output)
+        (io.runCommand "fail" { } "throw new Error('nope')")`);
+
+      expect(view.click()).toEqual([expect.stringMatching(/Error: nope/)]);
+      expect(view.logged()).toEqual([]);
     });
 
     it("reports functions that fail", () => {

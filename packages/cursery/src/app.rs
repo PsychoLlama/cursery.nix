@@ -143,31 +143,52 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
 /// the function returns runs next. Pending functions wait on a stack, so
 /// nesting goes as deep as it likes.
 ///
+/// A failure doesn't stop the chain: the next function gets an output that
+/// throws it when forced, so `builtins.tryEval` can recover, and functions
+/// that don't use their output carry on. A failure the chain ends with is
+/// returned. The chain's final value is deep-forced, so failures in it
+/// count too.
+///
 /// Each step is its own evaluation, so one doesn't force another, and the
 /// same effect twice runs twice rather than hitting the import cache.
 fn run(mount: &Mount, effect: Value) -> Result<(), Error> {
     let mut pending = Vec::new();
-    let mut current = step(mount, "effects.step value", &[("value", effect)])?;
+    let mut current = step(mount, "effects.step value", &[("value", effect)]);
     loop {
-        let output = if let Some(path) = current.select("effect") {
-            evaluate(mount, "effects.run path", &[("path", path.clone())])?
-        } else if let Some(source) = current.select("source") {
-            pending.push(field(&current, "next")?);
-            current = step(mount, "effects.step value", &[("value", source.clone())])?;
-            continue;
-        } else {
-            field(&current, "value")?
+        let output = match current {
+            Err(error) => Err(error),
+            Ok(attrs) => {
+                if let Some(path) = attrs.select("effect") {
+                    evaluate(mount, "effects.run path", &[("path", path.clone())])
+                } else if let Some(source) = attrs.select("source") {
+                    pending.push(select(&attrs, "next")?);
+                    current = step(mount, "effects.step value", &[("value", source.clone())]);
+                    continue;
+                } else if pending.is_empty() {
+                    // The end of the chain.
+                    evaluate(mount, "value", &[("value", select(&attrs, "value")?)])
+                } else {
+                    select(&attrs, "value")
+                }
+            }
         };
 
         let Some(next) = pending.pop() else {
-            return Ok(());
+            return output.map(drop);
         };
 
-        current = step(
-            mount,
-            "effects.step (next output)",
-            &[("next", next), ("output", output)],
-        )?;
+        current = match output {
+            Ok(output) => step(
+                mount,
+                "effects.step (next output)",
+                &[("next", next), ("output", output)],
+            ),
+            Err(error) => step(
+                mount,
+                "effects.step (next (throw error))",
+                &[("next", next), ("error", Value::from(error.message()))],
+            ),
+        };
     }
 }
 
@@ -179,9 +200,25 @@ fn evaluate(mount: &Mount, code: &str, bindings: &[(&'static str, Value)]) -> Re
     mount.session.evaluate(code, &bindings, EvalMode::Strict)
 }
 
-/// Evaluates a call to `effects.step`, as for [`evaluate`].
+/// Evaluates a call to `effects.step`, as for [`evaluate`] but lazily: what
+/// it steps through, e.g. an output, is only forced as needed.
 fn step(mount: &Mount, code: &str, bindings: &[(&'static str, Value)]) -> Result<NixAttrs, Error> {
-    Ok(evaluate(mount, code, bindings)?.to_attrs()?)
+    let bindings: Vec<_> = iter::once(("effects", mount.effects.clone()))
+        .chain(bindings.iter().cloned())
+        .collect();
+    mount
+        .session
+        .evaluate(code, &bindings, EvalMode::Lazy)?
+        .to_attrs()
+        .map_err(|error| Error::InvalidStep(error.to_string()))
+}
+
+/// Selects `name` from what `effects.step` returned.
+fn select(attrs: &NixAttrs, name: &'static str) -> Result<Value, Error> {
+    attrs
+        .select(name)
+        .cloned()
+        .ok_or_else(|| Error::InvalidStep(format!("missing {name:?}")))
 }
 
 /// Builders acting on apps: `builtin:dispatch`.

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use js_sys::Object;
+use snix_eval::{CatchableErrorKind, ErrorKind};
 use wasm_bindgen::{JsCast, JsValue};
 
 /// Errors surfaced to JS. Converted to a JS `Error` by `wasm-bindgen` at the
@@ -28,6 +29,9 @@ pub(crate) enum Error {
     #[error("Invalid renderer result: {0}")]
     InvalidRenderer(String),
 
+    #[error("Invalid effect step: {0}")]
+    InvalidStep(String),
+
     #[error("Cannot convert a {0} to JS")]
     Unconvertible(&'static str),
 
@@ -41,7 +45,7 @@ pub(crate) enum Error {
     InvalidNode(String),
 
     #[error("Invalid node: {0}")]
-    InvalidNodeType(#[from] snix_eval::ErrorKind),
+    InvalidNodeType(#[from] ErrorKind),
 
     #[error("Invalid CSS for class {0:?}: {1}")]
     InvalidStyle(String, Box<Error>),
@@ -54,6 +58,22 @@ pub(crate) enum Error {
 
     #[error("{0}")]
     Js(String),
+}
+
+impl Error {
+    /// The message alone, without the source excerpt. Messages from `throw`
+    /// are as thrown, so rethrowing one doesn't nest it.
+    pub(crate) fn message(&self) -> String {
+        match self {
+            Self::Eval(error) => match &error.kind {
+                ErrorKind::CatchableError(CatchableErrorKind::Throw(message)) => {
+                    String::from_utf8_lossy(message.as_bytes()).into_owned()
+                }
+                kind => kind.to_string(),
+            },
+            error => error.to_string(),
+        }
+    }
 }
 
 impl From<JsValue> for Error {

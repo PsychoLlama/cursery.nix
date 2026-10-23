@@ -43,7 +43,15 @@
 #   '')
 #
 # Return it from a handler to run it. Each effect runs in turn, after the
-# handler returns. If one fails, the rest of the chain doesn't run.
+# handler returns. Failures don't stop the chain: the function gets an
+# output that throws the failure when forced. Recover with
+# `builtins.tryEval`, or ignore the output to carry on regardless:
+#
+#   io.map (output: if (builtins.tryEval output).success then null else io.dispatch "failed")
+#     (io.runCommand "risky" { } "$out = risky()")
+#
+# The value a chain ends with is forced, so a failure that reaches it is
+# reported.
 #
 # `pipe` threads a value through functions, each getting what the last one
 # returned. When one returns an effect, the next gets its output, once it
@@ -57,8 +65,9 @@
 # It returns an effect to run if any function returned one, or else the last
 # function's value.
 #
-# `all` runs effects in order, then outputs a list of their outputs. Other
-# values in the list are outputs already:
+# `all` runs effects in order, then outputs a list of their outputs, even if
+# some fail: failed outputs throw when forced. Other values in the list are
+# outputs already:
 #
 #   io.map (counts: io.dispatch "counted" counts) (io.all [
 #     (io.runCommand "items" { } "$out = document.querySelectorAll('li').length")
