@@ -16,8 +16,8 @@
 #   io.call "focus" "#input"
 #
 # Return it from a handler to run it. Its output is what the effect
-# returned, as JSON would have it. Effects run synchronously, so they can't
-# return a promise. Errors name the effect.
+# returned, as JSON would have it. If that's a promise, the chain waits for
+# it, and the output is what it resolves to. Errors name the effect.
 #
 # `map` sequences effects. It runs an effect, then calls a function with its
 # output. If the function returns another effect, or another `map`, that
@@ -26,7 +26,7 @@
 #   io.map (count: io.dispatch "set" count) (io.call "count" "li")
 #
 # Return it from a handler to run it. Each effect runs in turn, after the
-# handler returns. If an effect or function fails, the chain skips ahead to
+# handler returns, waiting for any before it. If an effect or function fails, the chain skips ahead to
 # the nearest `catch`, and failures nothing catches are reported. Values a
 # chain passes on are forced, so a throw in one fails where it happens.
 #

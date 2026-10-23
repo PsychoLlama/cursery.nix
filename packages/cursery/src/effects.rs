@@ -3,13 +3,25 @@
 //! `{ _type = "effect"; kind; inputs; }`, deep-forced, so running one reads
 //! plain data.
 
+use std::{future::Future, pin::Pin};
+
 use snix_eval::{NixAttrs, Value};
 use web_sys::Element;
 
 use crate::{app, error::Error, mounts::Mount};
 
+/// What an effect outputs.
+pub(crate) enum Output {
+    Now(Value),
+
+    /// Once the future resolves, e.g. a promise from `io.call`.
+    Later(LaterOutput),
+}
+
+pub(crate) type LaterOutput = Pin<Box<dyn Future<Output = Result<Value, Error>>>>;
+
 /// Runs `effect` for the app in `container`, returning its output.
-pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<Value, Error> {
+pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<Output, Error> {
     let effect = attrs(effect)?;
     let kind = forced(field(&effect, "kind")?);
     let kind = kind
@@ -25,12 +37,12 @@ pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<
             .find(&kind, &inputs)
             .map(|event| {
                 event.prevent_default();
-                Value::Null
+                Output::Now(Value::Null)
             })
             .map_err(Error::Effect),
-        "call" => mount.calls.run(&inputs).map_err(Error::Effect),
+        "call" => mount.calls.run(&inputs),
         // The inputs are the action: `{ type; payload; }`.
-        "dispatch" => app::update(container, Value::attrs(inputs)),
+        "dispatch" => app::update(container, Value::attrs(inputs)).map(Output::Now),
         kind => Err(Error::Effect(format!("Unknown effect {kind:?}"))),
     }
 }

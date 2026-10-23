@@ -31,6 +31,8 @@ thiserror = "2.0.21"
 # Must match the `wasm-bindgen-cli` version in the flake exactly.
 wasm-bindgen = "=0.2.127"
 # Must stay in lockstep with `wasm-bindgen`.
+wasm-bindgen-futures = "=0.4.77"
+# Must stay in lockstep with `wasm-bindgen`.
 web-sys = { version = "=0.3.104", features = ["Attr", "CssRuleList", "CssStyleSheet", "Document", "Element", "Event", "EventTarget", "Node", "Text", "console"] }
 
 [lints]

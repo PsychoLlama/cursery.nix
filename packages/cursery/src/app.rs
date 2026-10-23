@@ -1,6 +1,6 @@
 //! Apps mounted into containers: rendering, and handling their events.
 
-use std::{cell::Cell, iter, path::PathBuf, rc::Rc};
+use std::{cell::Cell, iter, ops::ControlFlow, path::PathBuf, rc::Rc};
 
 use snix_eval::{EvalMode, NixAttrs, Value};
 use wasm_bindgen::JsValue;
@@ -8,7 +8,7 @@ use web_sys::{Element, Event};
 
 use crate::{
     calls::Calls,
-    effects,
+    effects::{self, LaterOutput, Output},
     error::Error,
     events::{self, Listeners},
     mounts::{self, Mount},
@@ -149,24 +149,49 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
 /// deep-forced, so a throw in one fails at the step that made it.
 ///
 /// Each step is its own evaluation, so one doesn't force another.
+///
+/// When an effect outputs later, e.g. a promise from `io.call`, the chain
+/// waits for it without blocking, and failures from then on are logged. Until
+/// then, the chain runs synchronously, renders and all.
 fn run(container: &Element, mount: &Mount, effect: Value) -> Result<(), Error> {
-    let mut pending = Vec::new();
-    let mut current = step(mount, "effects.step value", &[("value", effect)]);
+    let chain = Chain {
+        mount: mount.clone(),
+        pending: Vec::new(),
+    };
+
+    let current = step(mount, "effects.step value", &[("value", effect)]);
+    advance(container, chain, current)
+}
+
+/// Steps through `current`, then the rest of `chain`.
+fn advance(
+    container: &Element,
+    mut chain: Chain,
+    mut current: Result<NixAttrs, Error>,
+) -> Result<(), Error> {
     loop {
-        let mut output = match current {
+        let output = match current {
             Err(error) => Err(error),
             Ok(attrs) => {
                 if let Some(effect) = attrs.select("effect") {
-                    effects::run(container, mount, effect)
+                    match effects::run(container, &chain.mount, effect) {
+                        Ok(Output::Now(output)) => Ok(output),
+                        Ok(Output::Later(output)) => {
+                            wait(container.clone(), chain, output);
+                            return Ok(());
+                        }
+                        Err(error) => Err(error),
+                    }
                 } else if let Some(source) = attrs.select("source") {
-                    pending.push(match attrs.select("catch") {
+                    chain.pending.push(match attrs.select("catch") {
                         Some(catch) => Pending::Catch(catch.clone()),
                         None => Pending::Next(select(&attrs, "next")?),
                     });
-                    current = step(mount, "effects.step value", &[("value", source.clone())]);
+                    let source = source.clone();
+                    current = step(&chain.mount, "effects.step value", &[("value", source)]);
                     continue;
                 } else {
-                    mount.session.evaluate(
+                    chain.mount.session.evaluate(
                         "value",
                         &[("value", select(&attrs, "value")?)],
                         EvalMode::Strict,
@@ -175,28 +200,74 @@ fn run(container: &Element, mount: &Mount, effect: Value) -> Result<(), Error> {
             }
         };
 
-        // Unwinds to the function or handler that takes the output.
-        current = loop {
-            output = match (pending.pop(), output) {
-                (None, output) => return output.map(drop),
+        current = match chain.unwind(output) {
+            ControlFlow::Continue(next) => next,
+            ControlFlow::Break(output) => return output.map(drop),
+        };
+    }
+}
+
+/// Resumes `chain` with `output` once it resolves, unless the app is
+/// unmounted by then.
+fn wait(container: Element, mut chain: Chain, output: LaterOutput) {
+    wasm_bindgen_futures::spawn_local(async move {
+        let output = output.await;
+
+        // Listeners last as long as the app, across hot reloads, so a new
+        // app mounted into the container won't share them.
+        let mounted = mounts::get(&container)
+            .is_some_and(|mount| Rc::ptr_eq(&mount.listeners, &chain.mount.listeners));
+        if !mounted {
+            return;
+        }
+
+        let result = match chain.unwind(output) {
+            ControlFlow::Continue(next) => advance(&container, chain, next),
+            ControlFlow::Break(output) => output.map(drop),
+        };
+
+        if let Err(error) = result {
+            web_sys::console::error_1(&error.to_string().into());
+        }
+    });
+}
+
+/// The rest of a chain, waiting on the step running now.
+struct Chain {
+    /// Each step evaluates in the session that made it, even if the app has
+    /// been mounted again since.
+    mount: Mount,
+    pending: Vec<Pending>,
+}
+
+impl Chain {
+    /// Unwinds to the function or handler that takes `output`, returning the
+    /// step it makes, or the chain's output if there's none.
+    fn unwind(
+        &mut self,
+        mut output: Result<Value, Error>,
+    ) -> ControlFlow<Result<Value, Error>, Result<NixAttrs, Error>> {
+        loop {
+            output = match (self.pending.pop(), output) {
+                (None, output) => return ControlFlow::Break(output),
                 (Some(Pending::Next(next)), Ok(output)) => {
-                    break step(
-                        mount,
+                    return ControlFlow::Continue(step(
+                        &self.mount,
                         "effects.step (next output)",
                         &[("next", next), ("output", output)],
-                    );
+                    ));
                 }
                 (Some(Pending::Catch(catch)), Err(error)) => {
                     let error = NixAttrs::from_iter([("message", Value::from(error.message()))]);
-                    break step(
-                        mount,
+                    return ControlFlow::Continue(step(
+                        &self.mount,
                         "effects.step (catch error)",
                         &[("catch", catch), ("error", Value::attrs(error))],
-                    );
+                    ));
                 }
                 (Some(_), output) => output,
             };
-        };
+        }
     }
 }
 

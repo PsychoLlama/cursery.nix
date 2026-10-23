@@ -33,7 +33,7 @@ export interface MountOptions {
   /**
    * Effects the app runs with `io.call` from `<web/io>`, by name. Each gets
    * the input from Nix, converted to JS, and returns the output, as JSON
-   * would have it.
+   * would have it, or a promise of it.
    */
   effects?: Record<string, (input: any) => unknown>;
 }
@@ -138,11 +138,14 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// container's root while the app is mounted.
 ///
 /// `options.effects` are what the app can do beyond updating, by name, for
-/// `io.call` to run. They're plain JS, called synchronously:
+/// `io.call` to run. They're plain JS, and can return promises:
 ///
 /// ```js
 /// mount(container, path, {
-///   effects: { focus: (selector) => document.querySelector(selector).focus() },
+///   effects: {
+///     focus: (selector) => document.querySelector(selector).focus(),
+///     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+///   },
 /// });
 /// ```
 ///
