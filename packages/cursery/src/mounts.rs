@@ -23,6 +23,9 @@ pub(crate) struct Mount {
     /// What `internal/render.nix` returned for the app.
     pub(crate) renderer: Value,
 
+    /// `internal/io/effects.nix`, for running what handlers return.
+    pub(crate) effects: Value,
+
     /// The children last rendered into the container.
     pub(crate) tree: Value,
 

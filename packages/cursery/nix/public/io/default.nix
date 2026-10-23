@@ -33,8 +33,21 @@
 #
 # `env` goes in `passthru`, so it's passed as is rather than coerced. Like
 # dispatches, commands hash the current generation, so each import runs.
+#
+# `map` sequences effects. It runs an effect, then calls a function with its
+# output. If the function returns another effect, or another `map`, that
+# runs next; any other value ends the chain:
+#
+#   io.map (count: io.dispatch "set" count) (io.runCommand "count" { } ''
+#     $out = document.querySelectorAll("li").length;
+#   '')
+#
+# Return it from a handler to run it. Each effect runs in turn, after the
+# handler returns. If one fails, the rest of the chain doesn't run.
 
 let
+  inherit (import ../../internal/io/effects.nix) isEffect isIo;
+
   action =
     inputs:
     derivation (
@@ -72,8 +85,20 @@ let
         generation = builtins.__currentGeneration env;
         passthru = { inherit env; };
       };
+
+  map =
+    next: source:
+    if !builtins.isFunction next then
+      throw "Invalid function of type ${builtins.typeOf next}: expected a function of the output"
+    else if !isEffect source && !isIo source then
+      throw "Invalid source of type ${builtins.typeOf source}: expected an effect, like `io.dispatch`, or another `io.map`"
+    else
+      {
+        _type = "io";
+        inherit source next;
+      };
 in
 
 {
-  inherit dispatch runCommand;
+  inherit dispatch runCommand map;
 }

@@ -26,6 +26,7 @@
 let
   children = import ./children.nix;
   css = import ./css.nix;
+  effects = import ./io/effects.nix;
   event = import ./io/event.nix;
 
   check =
@@ -50,19 +51,6 @@ let
   checked = check app;
   render = checked.render or (_: null);
 
-  isEffect = value: builtins.isAttrs value && value.type or null == "derivation";
-
-  # Flattens what a handler returned into a list of effects.
-  effects =
-    value:
-    if builtins.isList value then
-      builtins.concatMap effects value
-    else if value == null then
-      [ ]
-    else if isEffect value then
-      [ value ]
-    else
-      throw "Invalid handler result of type ${builtins.typeOf value}: expected an effect, like `io.dispatch`, null, or a list of those";
   view = kept: children.normalize (render (if kept == null then { } else kept.state));
 in
 
@@ -92,13 +80,10 @@ in
         if checked.styles or { } == { } then null else "@layer base { ${css.global checked.styles} }";
     };
 
-  # Calls an event handler. It returns an effect to run, like `io.dispatch`,
-  # `null` to ignore the event, or a list of those to run in order. Returns
-  # the output paths of the effects, for the renderer to `run` each.
-  handle = handler: snapshot: map (effect: effect.outPath) (effects (handler (event snapshot)));
-
-  # Runs an effect, given its output path. A failed effect throws.
-  run = path: builtins.seq (import path) null;
+  # Calls an event handler. It returns an effect to run, like `io.dispatch`
+  # or `io.map`, `null` to ignore the event, or a list of those to run in
+  # order. Returns the effects, for Rust to run (see `io/effects.nix`).
+  handle = handler: snapshot: effects.flatten (handler (event snapshot));
 
   # Applies an action to what `mount` or `update` kept, for
   # `builtin:dispatch`.

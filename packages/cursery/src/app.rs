@@ -43,6 +43,15 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
         EvalMode::Lazy,
     )?;
 
+    let effects = session.evaluate(
+        "import effects",
+        &[(
+            "effects",
+            nix_path(session.bundled_path().join("internal/io/effects.nix")),
+        )],
+        EvalMode::Lazy,
+    )?;
+
     let kept = previous
         .as_ref()
         .map_or(Value::Null, |mount| mount.kept.clone());
@@ -75,6 +84,7 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
     let mount = Mount {
         session: Rc::new(session),
         renderer,
+        effects,
         tree: field(&result, "children")?,
         kept: field(&result, "kept")?,
         listeners,
@@ -85,9 +95,9 @@ pub(crate) fn mount(container: &Element, path: &str) -> Result<(), Error> {
 }
 
 /// Handles `event` for the app mounted into `container`, calling each
-/// handler in turn and running the effects it returns, in order.
-/// `builtin:dispatch` renders as it goes: if an effect fails, earlier ones
-/// stay rendered and later ones don't run.
+/// handler in turn and running the effects it returns, in order (see
+/// [`run`]). `builtin:dispatch` renders as it goes: if an effect fails,
+/// earlier ones stay rendered and later ones don't run.
 ///
 /// Events fired while committing are ignored, e.g. `blur` from removing a
 /// focused element. They're artifacts of patching, not things people did,
@@ -120,21 +130,58 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
             EvalMode::Strict,
         )?;
 
-        // Each in its own evaluation, so one doesn't force another, and the
-        // same effect twice runs twice rather than hitting the import cache.
         for effect in &effects.to_list()? {
-            mount.session.evaluate(
-                "renderer.run effect",
-                &[
-                    ("renderer", mount.renderer.clone()),
-                    ("effect", effect.clone()),
-                ],
-                EvalMode::Strict,
-            )?;
+            run(&mount, effect.clone())?;
         }
     }
 
     Ok(())
+}
+
+/// Runs an effect a handler returned, following `io.map` chains: each
+/// source runs before its function is called with the output, and whatever
+/// the function returns runs next. Pending functions wait on a stack, so
+/// nesting goes as deep as it likes.
+///
+/// Each step is its own evaluation, so one doesn't force another, and the
+/// same effect twice runs twice rather than hitting the import cache.
+fn run(mount: &Mount, effect: Value) -> Result<(), Error> {
+    let mut pending = Vec::new();
+    let mut current = step(mount, "effects.step value", &[("value", effect)])?;
+    loop {
+        let output = if let Some(path) = current.select("effect") {
+            evaluate(mount, "effects.run path", &[("path", path.clone())])?
+        } else if let Some(source) = current.select("source") {
+            pending.push(field(&current, "next")?);
+            current = step(mount, "effects.step value", &[("value", source.clone())])?;
+            continue;
+        } else {
+            field(&current, "value")?
+        };
+
+        let Some(next) = pending.pop() else {
+            return Ok(());
+        };
+
+        current = step(
+            mount,
+            "effects.step (next output)",
+            &[("next", next), ("output", output)],
+        )?;
+    }
+}
+
+/// Strictly evaluates `code` with `effects` and `bindings` in scope.
+fn evaluate(mount: &Mount, code: &str, bindings: &[(&'static str, Value)]) -> Result<Value, Error> {
+    let bindings: Vec<_> = iter::once(("effects", mount.effects.clone()))
+        .chain(bindings.iter().cloned())
+        .collect();
+    mount.session.evaluate(code, &bindings, EvalMode::Strict)
+}
+
+/// Evaluates a call to `effects.step`, as for [`evaluate`].
+fn step(mount: &Mount, code: &str, bindings: &[(&'static str, Value)]) -> Result<NixAttrs, Error> {
+    Ok(evaluate(mount, code, bindings)?.to_attrs()?)
 }
 
 /// Builders acting on apps: `builtin:dispatch`.
