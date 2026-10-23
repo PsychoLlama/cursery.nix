@@ -139,7 +139,7 @@ export function render(root: string, page: Resolved, client: string): string {
 const WRAPPER = `{ server, client, script }:
 let
   inherit (import <web/dom>) html;
-  app = (import <web/server>).render (import client);
+  app = (import <web/static>).render (import client);
   scripts = if script == null then [ ] else [ (html.script { type = "module"; src = script; }) ];
 in
 import server (

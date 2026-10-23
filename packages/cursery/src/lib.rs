@@ -186,7 +186,7 @@ pub fn unmount(container: &Element) -> Result<(), JsError> {
 ///
 /// The entrypoint is a function of `inputs`, data like bundle URLs from the
 /// build, as JSON would have them. It returns the whole page, as an `html`
-/// element, rendering apps into it with `render` from `<web/server>`. The
+/// element, rendering apps into it with `render` from `<web/static>`. The
 /// page is prefixed with `<!doctype html>`, and nothing else:
 ///
 /// ```nix
@@ -263,7 +263,7 @@ mod tests {
             Session::new()
                 .evaluate("builtins.attrNames (import <web>)", &[], EvalMode::Strict)?
                 .to_string(),
-            r#"[ "dom" "io" "server" "style" ]"#
+            r#"[ "dom" "io" "static" "style" ]"#
         );
         Ok(())
     }

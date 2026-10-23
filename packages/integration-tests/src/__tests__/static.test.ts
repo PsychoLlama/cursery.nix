@@ -5,14 +5,14 @@ import * as cursery from "cursery";
 import { load, nix } from "../testing.ts";
 
 /**
- * Renders `app` with `render` from `<web/server>`, returning its children,
+ * Renders `app` with `render` from `<web/static>`, returning its children,
  * rendered into a body, and its styles. `html` and `style` are in scope.
  */
 function render(app: string) {
   using server = load({
     "default.nix": nix`_: let
       inherit (import <web/dom>) html;
-      inherit (import <web/server>) render;
+      inherit (import <web/static>) render;
       style = import <web/style>;
       app = render (${app});
     in html.html [ (html.style app.styles) (html.body app.children) ]`,
@@ -101,7 +101,7 @@ describe("render", () => {
     using server = load({
       "default.nix": nix`{ client, bundles }: let
         inherit (import <web/dom>) html;
-        app = (import <web/server>).render (import client);
+        app = (import <web/static>).render (import client);
       in html.html [
         (html.head (map (src: html.script { type = "module"; inherit src; }) bundles))
         (html.body (html.div { id = "app"; } app.children))

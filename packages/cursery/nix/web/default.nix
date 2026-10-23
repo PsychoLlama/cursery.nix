@@ -1,6 +1,6 @@
 {
   dom = import ./dom;
   io = import ./io;
-  server = import ./server;
+  static = import ./static;
   style = import ./style;
 }

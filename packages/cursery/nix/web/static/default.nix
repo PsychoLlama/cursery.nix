@@ -1,10 +1,11 @@
-# Server renders, for `renderToString`. `render` renders an app as it first
-# mounts, for a page to place:
+# Static renders, for pages built ahead of time or on a server, e.g. with
+# `renderToString`. `render` renders an app as it first mounts, for a page to
+# place:
 #
 #   { client, bundles, ... }:
 #   let
 #     inherit (import <web/dom>) html;
-#     inherit (import <web/server>) render;
+#     inherit (import <web/static>) render;
 #     app = render (import client);
 #   in
 #   html.html { lang = "en"; } [
