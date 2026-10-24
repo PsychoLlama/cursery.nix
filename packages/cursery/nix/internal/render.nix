@@ -8,6 +8,7 @@
 #
 #     # Returns the next state, given the current one and an action
 #     # dispatched with `io.dispatch` from `<web/io>`: `{ type; payload; }`.
+#     # Or returns an effect to run instead, leaving the state as it is.
 #     update = state: action: state;
 #
 #     # Returns children, like any element accepts.
@@ -84,13 +85,19 @@ builtins.seq checked {
   handle = handler: snapshot: effects.check (handler (event snapshot));
 
   # Applies an action to what `mount` or `update` kept, for `dispatch`
-  # effects.
+  # effects. Returns `{ kept; }` for the next state, or `{ effect; }` if
+  # `update` returned an effect to run instead.
   update =
     kept: action:
+    let
+      next = checked.update kept.state action;
+    in
     if kept == null then
       throw "Received an action without an `update` to handle it"
+    else if effects.isEffect next || effects.isIo next then
+      { effect = next; }
     else
-      { state = checked.update kept.state action; };
+      { kept.state = next; };
 
   # Renders children from what `mount` or `update` kept.
   inherit view;

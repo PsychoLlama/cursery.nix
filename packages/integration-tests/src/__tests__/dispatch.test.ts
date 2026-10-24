@@ -146,7 +146,7 @@ describe("dispatch", () => {
       expect(shown(view)).toBe(1);
     });
 
-    it("doesn't run effects `update` returns", () => {
+    it("treats effects inside the state as data", () => {
       using view = render(nix`{
         init = { types = [ ]; };
         update = state: action: {
@@ -161,6 +161,63 @@ describe("dispatch", () => {
 
       expect(errors(view)).toEqual([]);
       expect(shown(view)).toEqual(["outer"]);
+    });
+  });
+
+  describe("effects from `update`", () => {
+    it("run instead of updating the state", () => {
+      using view = render(nix`{
+        init = [ ];
+        update = state: action:
+          if action.type == "save" then dispatch "saved" action.payload
+          else state ++ [ action ];
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button { on.click = event: dispatch "save" 1; })
+        ];
+      }`);
+
+      view.get("button").click();
+
+      expect(shown(view)).toEqual([{ type: "saved", payload: 1 }]);
+    });
+
+    it("output what the effect outputs", () => {
+      using view = render(nix`{
+        init = { count = 0; seen = null; };
+        update = state: action:
+          if action.type == "fetch" then io.map (state: state.count * 10) (dispatch "increment" null)
+          else if action.type == "increment" then state // { count = state.count + 1; }
+          else state // { seen = action.payload; };
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button {
+            on.click = event: io.map (result: dispatch "see" result) (dispatch "fetch" null);
+          })
+        ];
+      }`);
+
+      view.get("button").click();
+
+      expect(shown(view)).toEqual({ count: 1, seen: 10 });
+    });
+
+    it("fail where they were dispatched", () => {
+      using view = render(nix`{
+        init = null;
+        update = state: action:
+          if action.type == "risky" then io.map (_: throw "nope") (dispatch "step" null)
+          else action.payload;
+        render = state: [
+          (html.pre (builtins.toJSON state))
+          (html.button {
+            on.click = event: io.catch (error: dispatch "failed" error.message) (dispatch "risky" null);
+          })
+        ];
+      }`);
+
+      expect(errors(view)).toEqual([]);
+      expect(shown(view)).toMatch(/nope/);
     });
   });
 

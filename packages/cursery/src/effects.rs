@@ -16,6 +16,10 @@ pub(crate) enum Output {
 
     /// Once the future resolves, e.g. a promise from `io.call`.
     Later(LaterOutput),
+
+    /// Whatever this effect outputs, once it runs, e.g. one `update`
+    /// returned.
+    Then(Value),
 }
 
 pub(crate) type LaterOutput = Pin<Box<dyn Future<Output = Result<Value, Error>>>>;
@@ -42,7 +46,7 @@ pub(crate) fn run(container: &Element, mount: &Mount, effect: &Value) -> Result<
             .map_err(Error::Effect),
         "call" => mount.calls.run(&inputs),
         // The inputs are the action: `{ type; payload; }`.
-        "dispatch" => app::update(container, Value::attrs(inputs)).map(Output::Now),
+        "dispatch" => app::update(container, Value::attrs(inputs)),
         kind => Err(Error::Effect(format!("Unknown effect {kind:?}"))),
     }
 }

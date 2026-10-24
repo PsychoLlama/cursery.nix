@@ -130,8 +130,9 @@ pub fn evaluate(code: &str) -> Result<JsValue, JsError> {
 /// Handlers in `on` (see `<web/dom>`) return effects, like `io.dispatch`
 /// from `<web/io>`, which runs `update` and renders. `io.map`, `io.pipe`,
 /// and `io.all` combine effects into one, e.g. to use the next state a
-/// dispatch outputs. If a handler or `update` fails, the error is logged;
-/// earlier dispatches stay rendered.
+/// dispatch outputs. `update` can return an effect too, which runs in place
+/// of the dispatch, leaving the state as it is. If a handler or `update`
+/// fails, the error is logged; earlier dispatches stay rendered.
 ///
 /// `styles` holds global CSS, e.g. `styles = "body { margin: 0; }";`. It's
 /// adopted by the container's root while the app is mounted.

@@ -334,6 +334,39 @@ describe("call", () => {
       expect(view.logged()).toEqual(["done"]);
     });
 
+    it("pause effects `update` returns", async () => {
+      const { promise, resolve } = Promise.withResolvers();
+      using app = load({
+        "default.nix": nix`let
+          inherit (import <web/dom>) html;
+          io = import <web/io>;
+        in {
+          init = "idle";
+          update = state: action:
+            if action.type == "load" then
+              io.pipe null [
+                (_: io.dispatch "set" "loading")
+                (_: io.call "fetch" null)
+                (data: io.dispatch "set" data)
+              ]
+            else action.payload;
+          render = state: [
+            (html.pre state)
+            (html.button { on.click = event: io.dispatch "load" null; })
+          ];
+        }`,
+      });
+      using view = mount(app.path, { effects: { fetch: () => promise } });
+
+      view.container.querySelector("button")!.click();
+      expect(view.container.querySelector("pre")!.textContent).toBe("loading");
+
+      resolve("loaded");
+      await settle();
+
+      expect(view.container.querySelector("pre")!.textContent).toBe("loaded");
+    });
+
     it("are dropped once the app unmounts", async () => {
       const { promise, resolve } = Promise.withResolvers();
       const after = vi.fn();

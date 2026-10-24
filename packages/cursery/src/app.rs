@@ -180,6 +180,11 @@ fn advance(
                             wait(container.clone(), chain, output);
                             return Ok(());
                         }
+                        Ok(Output::Then(effect)) => {
+                            current =
+                                step(&chain.mount, "effects.step value", &[("value", effect)]);
+                            continue;
+                        }
                         Err(error) => Err(error),
                     }
                 } else if let Some(source) = attrs.select("source") {
@@ -303,19 +308,30 @@ fn select(attrs: &NixAttrs, name: &'static str) -> Result<Value, Error> {
 }
 
 /// Runs a `dispatch` effect: applies `action` to the app in `container`,
-/// renders it, and outputs the next state. The app is looked up afresh, as
-/// an earlier dispatch in the same chain may have updated it.
-pub(crate) fn update(container: &Element, action: Value) -> Result<Value, Error> {
+/// renders it, and outputs the next state. If `update` returns an effect
+/// instead, that runs next, in its place. The app is looked up afresh, as an
+/// earlier dispatch in the same chain may have updated it.
+pub(crate) fn update(container: &Element, action: Value) -> Result<Output, Error> {
     let mount = mounts::get(container).ok_or(Error::NotMounted)?;
-    let kept = mount.session.evaluate(
-        "renderer.update kept action",
-        &[
-            ("renderer", mount.renderer.clone()),
-            ("kept", mount.kept.clone()),
-            ("action", action),
-        ],
-        EvalMode::Strict,
-    )?;
+    let updated = mount
+        .session
+        .evaluate(
+            "renderer.update kept action",
+            &[
+                ("renderer", mount.renderer.clone()),
+                ("kept", mount.kept.clone()),
+                ("action", action),
+            ],
+            EvalMode::Strict,
+        )?
+        .to_attrs()
+        .map_err(|error| Error::InvalidRenderer(error.to_string()))?;
+
+    if let Some(effect) = updated.select("effect") {
+        return Ok(Output::Then(effect.clone()));
+    }
+
+    let kept = field(&updated, "kept")?;
 
     let tree = mount.session.evaluate(
         "renderer.view kept",
@@ -337,7 +353,7 @@ pub(crate) fn update(container: &Element, action: Value) -> Result<Value, Error>
     };
 
     commit(container, Some(&mount), next)?;
-    Ok(state)
+    Ok(Output::Now(state))
 }
 
 /// Renders `mount` into `container`, patching from `previous`, and records it.

@@ -6,9 +6,24 @@
 #   io.dispatch "increment" null
 #   io.dispatch "add" { text = "milk"; }
 #
-# `update` gets `{ type; payload; }`. Return a dispatch from a handler to run it: it updates, renders, then
-# outputs the next state. The payload is forced with it, so a throw in it
-# fails the dispatch.
+# `update` gets `{ type; payload; }`. Return a dispatch from a handler to
+# run it: it updates, renders, then outputs the next state. The payload is
+# forced with it, so a throw in it fails the dispatch.
+#
+# `update` can return an effect instead of a state. That runs in the
+# dispatch's place, leaving the state as it is, and the dispatch outputs
+# what it outputs. Dispatch again to update along the way:
+#
+#   update = state: action:
+#     if action.type == "save" then
+#       io.pipe null [
+#         (_: io.dispatch "saving" null)
+#         (_: io.call "save" state)
+#         (result: io.dispatch "saved" result)
+#       ]
+#     else ...;
+#
+# Failures reach the chain that dispatched it, like any other effect.
 #
 # `call` describes calling an effect the host passed to `mount` in
 # `effects`, given its name and input. The input is converted to JS:
