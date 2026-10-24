@@ -35,6 +35,15 @@
     in
 
     {
+      templates = {
+        default = self.templates.minimal;
+
+        minimal = {
+          path = ./templates/minimal;
+          description = "A web app written in Nix, built with Vite";
+        };
+      };
+
       devShells = eachSystem (
         system: pkgs: {
           default = pkgs.mkShell {

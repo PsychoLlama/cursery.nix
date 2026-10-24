@@ -1,3 +1,7 @@
 /target
 node_modules/
 dist/
+
+# Templates are copied into new repos, which make their own.
+/templates/**/flake.lock
+/templates/**/pnpm-lock.yaml

@@ -1,2 +1,7 @@
 packages:
   - packages/*
+  - templates/*
+
+# Resolves `cursery` in templates to the local package, while their
+# `package.json` names the published version.
+linkWorkspacePackages: true

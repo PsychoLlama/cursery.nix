@@ -53,6 +53,16 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.0)(jsdom@30.1.1)(vite@8.3.4(@types/node@24.19.0))
 
+  templates/minimal:
+    dependencies:
+      cursery:
+        specifier: ^0.1.0
+        version: link:../../packages/cursery
+    devDependencies:
+      vite:
+        specifier: ^8.3.4
+        version: 8.3.4(@types/node@24.19.0)
+
 packages:
 
   '@asamuzakjp/css-color@7.1.2':
