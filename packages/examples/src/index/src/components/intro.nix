@@ -28,9 +28,9 @@ in
 { }:
 html.section [
   (html.h1 {
-    class = "text-4xl font-semibold tracking-tight text-balance sm:text-5xl";
+    class = "text-4xl font-semibold tracking-tight sm:text-5xl";
   } "Interactive web apps in pure Nix")
-  (html.p { class = "mt-5 max-w-2xl text-lg"; } [
+  (html.p { class = "mt-5 text-lg"; } [
     "Elements, styles, state, and side effects, all written in Nix. "
     (html.a {
       href = "https://www.npmjs.com/package/cursery";
