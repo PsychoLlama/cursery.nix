@@ -239,7 +239,27 @@ describe("dev", () => {
     const result = await dev.server.transformRequest("/app?cursery:app");
 
     expect(result?.code).toMatch(/cursery\/dist\/vite-plugin\/runtime\.js"/);
-    expect(result?.code).toContain('from "/app/default.nix?import&raw"');
+    expect(result?.code).toContain(
+      'from "/app/default.nix?import&cursery:raw"',
+    );
+  });
+
+  it("imports app files by directory", async () => {
+    using files = project({
+      "app/default.nix": nix`import ./view.nix`,
+      "app/view.nix": nix`"from the view"`,
+    });
+    await using dev = await serve(files.root, {});
+
+    const { default: sources } =
+      await dev.server.ssrLoadModule("/app?cursery:raw");
+    const { evaluate, load } = await dev.server.ssrLoadModule("cursery");
+
+    expect(sources).toEqual({
+      "./default.nix": nix`import ./view.nix`,
+      "./view.nix": nix`"from the view"`,
+    });
+    expect(evaluate(`import ${load(sources)}`)).toBe("from the view");
   });
 
   it("loads app sources by directory", async () => {

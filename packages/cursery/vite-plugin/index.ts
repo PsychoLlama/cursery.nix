@@ -41,6 +41,15 @@
  *
  * mount(document.getElementById("app")!, app);
  * ```
+ *
+ * `?cursery:raw` gives the files themselves, by path, for `load`:
+ *
+ * ```ts
+ * import files from "./app?cursery:raw";
+ *
+ * const path = load(files);
+ * mount(document.getElementById("app")!, `${path}/default.nix`);
+ * ```
  */
 
 import { statSync } from "node:fs";
@@ -161,6 +170,8 @@ export default function cursery(options: Options = {}): Plugin {
           return { code: entry(file), moduleType: "js" };
         case "source":
           return { code: sources(file), moduleType: "js" };
+        case "raw":
+          return { code: raw(file), moduleType: "js" };
         default:
           return null;
       }
@@ -168,11 +179,15 @@ export default function cursery(options: Options = {}): Plugin {
   };
 }
 
-/** What `search`, a query string, imports: an app, its source, or neither. */
+/**
+ * What `search`, a query string, imports: an app, its source, its files, or
+ * neither.
+ */
 function kind(search: string) {
   const params = new URLSearchParams(search);
   if (params.has("cursery:app")) return "app";
   if (params.has("cursery:source")) return "source";
+  if (params.has("cursery:raw")) return "raw";
   return null;
 }
 
@@ -210,19 +225,11 @@ function entry(file: string) {
   // one changes. Accepting statically marks it as the update boundary.
   return `
 import { app } from "cursery/vite-plugin/runtime";
-import source from ${JSON.stringify(`${name}?raw`)};
-
-// Globs skip the importing file, i.e. the entry.
-const files = import.meta.glob("./**/*.nix", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
+import files from ${JSON.stringify(`${name}?cursery:raw`)};
 
 import.meta.hot?.accept();
 
-const entry = ${JSON.stringify(name)};
-export default app({ ...files, [entry]: source }, entry, import.meta.hot);
+export default app(files, ${JSON.stringify(name)}, import.meta.hot);
 `;
 }
 
@@ -235,7 +242,24 @@ function sources(file: string) {
 
   return `
 import { load, unload } from "cursery";
-import source from ${JSON.stringify(`./${name}?raw`)};
+import files from ${JSON.stringify(`./${name}?cursery:raw`)};
+
+const path = load(files);
+import.meta.hot?.dispose(() => unload(path));
+
+export default \`\${path}/${name}\`;
+`;
+}
+
+/**
+ * The module exporting the app at `file` as files for `load`: its entry,
+ * and every `.nix` file beside it and below, by path.
+ */
+function raw(file: string) {
+  const name = `./${basename(file)}`;
+
+  return `
+import source from ${JSON.stringify(`${name}?raw`)};
 
 // Globs skip the importing file, i.e. the entry.
 const files = import.meta.glob("./**/*.nix", {
@@ -244,9 +268,6 @@ const files = import.meta.glob("./**/*.nix", {
   eager: true,
 });
 
-const path = load({ ...files, ${JSON.stringify(`./${name}`)}: source });
-import.meta.hot?.dispose(() => unload(path));
-
-export default \`\${path}/${name}\`;
+export default { ...files, ${JSON.stringify(name)}: source };
 `;
 }
