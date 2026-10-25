@@ -1,12 +1,17 @@
 let
   inherit (import <web/dom>) html;
-  inherit (import ../theme.nix) heading frame;
+  inherit (import ../theme.nix)
+    heading
+    frame
+    link
+    repository
+    ;
 
   examples = [
     {
       href = "/hello-world/";
       name = "Hello world";
-      body = "Type your name and get greeted.";
+      body = "Type your name, see text update.";
     }
     {
       href = "/todomvc/";
@@ -36,4 +41,12 @@ html.section { id = "examples"; } [
       ]
     ) examples
   ))
+  (html.p { class = "mt-6 text-[#4a4853]"; } [
+    "This page itself! The entire site is written in Nix, pre-rendered and hydrated. "
+    (html.a {
+      href = "${repository}/tree/main/packages/examples/src/index";
+      class = link;
+    } "See the source")
+    "."
+  ])
 ]

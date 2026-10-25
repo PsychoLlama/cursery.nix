@@ -54,13 +54,15 @@ in
 { counter }:
 html.div [
   (heading "Try it")
-  (html.p { class = "mt-2"; } [
-    "This page is a cursery.nix app. Here's a piece of it, running next to its source."
-  ])
+  (html.p {
+    class = "mt-2";
+  } "A minimal cursery.nix app. You can't edit the code here. It was too hard. Sorry.")
+
   (html.div { class = "${frame} mt-6 grid bg-white sm:grid-cols-[minmax(0,1fr)_14rem]"; } [
     (html.pre {
       class = "overflow-x-auto bg-[#2b2a33] p-5 font-mono text-sm leading-relaxed text-[#e8e1d4]";
     } (html.code highlight))
+
     (html.div
       {
         class = "grid min-h-40 place-items-center bg-[#fbf8f2] p-6 [&_button]:rounded-md [&_button]:bg-[#c8553d] [&_button]:px-4 [&_button]:py-2 [&_button]:font-medium [&_button]:whitespace-nowrap [&_button]:text-white [&_button]:hover:bg-[#b2472f] [&_button]:active:translate-y-px";
