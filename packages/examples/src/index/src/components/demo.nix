@@ -54,46 +54,57 @@ html.div [
   (heading "Try it")
   (html.p { class = "mt-2"; } "A minimal cursery.nix app. Edit it and see.")
 
-  (html.div { class = "${frame} mt-6 grid bg-white sm:grid-cols-[minmax(0,1fr)_14rem]"; } [
-    (html.div { class = "flex min-w-0 flex-col bg-[#2b2a33] text-[#e8e1d4]"; } [
-      (html.div { class = "overflow-x-auto"; } [
-        (html.div { class = "grid w-max min-w-full"; } [
-          # A trailing space keeps a final empty line, as the editor shows it.
-          (html.pre {
-            class = text;
-            aria-hidden = "true";
-          } (html.code (highlight source ++ [ " " ])))
-          (html.textarea {
-            id = "demo-source";
-            class = "${text} resize-none overflow-hidden bg-transparent text-transparent caret-[#e8e1d4] outline-none selection:bg-white/20";
-            aria-label = "Source";
-            spellcheck = "false";
-            wrap = "off";
-            value = source;
-            on.input = edit;
-          })
+  (html.div { class = "relative mt-6"; } [
+    (html.div
+      {
+        class = [
+          "${frame} grid bg-white sm:grid-cols-[minmax(0,1fr)_14rem]"
+          (if error == null then null else "rounded-b-none")
+        ];
+      }
+      [
+        (html.div { class = "min-w-0 overflow-x-auto bg-[#2b2a33] text-[#e8e1d4]"; } [
+          (html.div { class = "grid w-max min-w-full"; } [
+            # A trailing space keeps a final empty line, as the editor shows it.
+            (html.pre {
+              class = text;
+              aria-hidden = "true";
+            } (html.code (highlight source ++ [ " " ])))
+            (html.textarea {
+              id = "demo-source";
+              class = "${text} resize-none overflow-hidden bg-transparent text-transparent caret-[#e8e1d4] outline-none selection:bg-white/20";
+              aria-label = "Source";
+              spellcheck = "false";
+              wrap = "off";
+              value = source;
+              on.input = edit;
+            })
+          ])
         ])
-      ])
-      (
-        if error == null then
-          null
-        else
-          html.pre {
-            class = "max-h-48 overflow-auto border-t border-white/10 bg-[#3a2a2e] px-5 py-3 font-mono text-xs text-[#f0b0a0]";
-          } error
-      )
-    ])
 
-    (html.div { class = "grid min-h-40 bg-[#fbf8f2]"; } [
-      (html.iframe {
-        id = "demo-preview";
-        src = "/playground-frame/";
-        title = "Demo";
-        class = "size-full min-h-40 noscript:hidden";
-      })
-      (html.p {
-        class = "hidden place-self-center p-6 text-center text-sm text-[#6b6875] noscript:block";
-      } "Enable JavaScript to try the demo.")
-    ])
+        (html.div { class = "grid min-h-40 bg-[#fbf8f2]"; } [
+          (html.iframe {
+            id = "demo-preview";
+            src = "/playground-frame/";
+            title = "Demo";
+            class = "size-full min-h-40 noscript:hidden";
+          })
+          (html.p {
+            class = "hidden place-self-center p-6 text-center text-sm text-[#6b6875] noscript:block";
+          } "Enable JavaScript to try the demo.")
+        ])
+      ]
+    )
+
+    # Snapped below, over the page, so errors coming and going don't move it.
+    # It covers the box's bottom border.
+    (
+      if error == null then
+        null
+      else
+        html.pre {
+          class = "absolute inset-x-0 top-full z-10 -mt-px max-h-36 overflow-auto rounded-b-lg border border-t-0 border-[#2b2a33]/15 bg-[#3a2a2e] px-5 py-3 font-mono scheme-dark text-xs text-[#f0b0a0] shadow-lg";
+        } error
+    )
   ])
 ]
