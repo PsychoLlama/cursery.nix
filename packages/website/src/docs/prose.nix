@@ -9,7 +9,34 @@ in
 {
   inherit (theme) code link;
 
-  heading = html.h2 { class = "mt-12 text-2xl font-semibold tracking-tight"; };
+  # A section heading, linkable by a slug of its title, e.g. `#io-dispatch`
+  # for "io.dispatch". The link shows on hover.
+  heading =
+    title:
+    let
+      letters = string: builtins.genList (i: builtins.substring i 1 string) 26;
+      lower =
+        builtins.replaceStrings (letters "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+          (letters "abcdefghijklmnopqrstuvwxyz")
+          title;
+      words = builtins.filter (part: builtins.isString part && part != "") (
+        builtins.split "[^a-z0-9]+" lower
+      );
+      slug = builtins.concatStringsSep "-" words;
+    in
+    html.h2
+      {
+        id = slug;
+        class = "group mt-12 scroll-mt-8 text-2xl font-semibold tracking-tight";
+      }
+      [
+        title
+        (html.a {
+          href = "#${slug}";
+          class = "ml-2 text-[#6b6875] opacity-0 group-hover:opacity-100 hover:text-[#c8553d] focus:opacity-100";
+          aria-label = "Link to this section";
+        } "#")
+      ];
   paragraph = html.p { class = "mt-4"; };
 
   # Source code, given its language and file name. Highlighted at build, by
