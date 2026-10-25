@@ -1,4 +1,5 @@
-// Builds the Vite plugin. The wasm bindings are built by `bin/build`.
+// Builds the Vite and Vitest plugins. The wasm bindings are built by
+// `bin/build`, into the same `dist`.
 
 import { dts } from "rolldown-plugin-dts";
 import { defineConfig } from "vite";
@@ -7,11 +8,16 @@ export default defineConfig({
   // Keeps Vite from transforming the declarations `dts` bundles.
   oxc: { exclude: [/\.js$/, /\.d\.[cm]?ts$/] },
   build: {
-    outDir: "dist/vite-plugin",
-    emptyOutDir: true,
+    outDir: "dist",
+    emptyOutDir: false,
     minify: false,
     lib: {
-      entry: ["vite-plugin/index.ts", "vite-plugin/runtime.ts"],
+      entry: {
+        "vite-plugin/index": "vite-plugin/index.ts",
+        "vite-plugin/runtime": "vite-plugin/runtime.ts",
+        "vitest/index": "vitest/index.ts",
+        "vitest/setup": "vitest/setup.ts",
+      },
       formats: ["es"],
     },
     rolldownOptions: {

@@ -36,6 +36,10 @@
     },
     "./vite-plugin/client": {
       "types": "./vite-plugin/client.d.ts"
+    },
+    "./vitest": {
+      "types": "./dist/vitest/index.d.ts",
+      "default": "./dist/vitest/index.js"
     }
   },
   "scripts": {
