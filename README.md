@@ -2,18 +2,23 @@
 
 A framework for authoring web apps in pure Nix.
 
-## Features
+## :point_right: See [Website](https://cursery.psychollama.io) and [Docs](https://cursery.psychollama.io/docs/)
 
-- **Virtual DOM:** Unchanged elements persist between nix renders.
-- **Styling:** Modular CSS authoring with hashed class names.
-- **Event Handling:** You can click things.
-- **Live Reloading:** Immediately see edits to your nix code on screen.
-- **Side Effects:** Just another term for derivations.
+```nix
+let
+  inherit (import <web/dom>) html;
+  inherit (import <web/io>) dispatch;
+in
 
-## Usage
-
-```bash
-npm install -S cursery
+{
+  init = 0;
+  update = count: action: count + 1;
+  render =
+    count:
+    html.button {
+      on.click = event: dispatch "increment" null;
+    } "Clicked ${toString count} times";
+}
 ```
 
 ## Why?
