@@ -47,6 +47,7 @@ import { statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { Plugin } from "vite";
 
+import { settings } from "../vitest/settings.ts";
 import { type Page, pages as readPages, render } from "./pages.ts";
 
 export type { Client, Page } from "./pages.ts";
@@ -74,9 +75,12 @@ export default function cursery(options: Options = {}): Plugin {
     name: "cursery",
     enforce: "pre",
 
-    config(config) {
+    config(config, { mode }) {
       root = resolve(config.root ?? "");
       pages = readPages(root, options.pages ?? {});
+
+      // Vitest runs in mode "test", which builds no pages.
+      if (mode === "test") return settings(config);
       if (pages.length === 0) return;
 
       // Pages are build entries, like HTML files in the root.

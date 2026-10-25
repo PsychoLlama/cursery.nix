@@ -1,15 +1,17 @@
 // @vitest-environment node
 
+import app from "cursery/vite-plugin";
 import cursery from "cursery/vitest";
-import { type InlineConfig, resolveConfig } from "vite";
+import { type InlineConfig, type PluginOption, resolveConfig } from "vite";
 
 /** The `test` settings Vitest would see, given the user's own. */
-async function settings(test: object) {
+async function settings(test: object, plugins: PluginOption[] = [cursery()]) {
   const resolved = await resolveConfig(
     {
       configFile: false,
       logLevel: "silent",
-      plugins: [cursery()],
+      mode: "test",
+      plugins,
       test,
     } as InlineConfig,
     "serve",
@@ -22,7 +24,7 @@ async function settings(test: object) {
   ).test;
 }
 
-describe("vitest plugin", () => {
+describe("vitest settings", () => {
   it("loads cursery's bindings untransformed, keeping other externals", async () => {
     const { server } = await settings({
       server: { deps: { external: ["other"] } },
@@ -35,5 +37,19 @@ describe("vitest plugin", () => {
     const { setupFiles } = await settings({ setupFiles: ["./mine.ts"] });
 
     expect(setupFiles).toEqual(["./mine.ts", "cursery/testing/setup"]);
+  });
+
+  it("is applied by the Vite plugin", async () => {
+    const { server, setupFiles } = await settings({}, [app()]);
+
+    expect(server.deps.external).toEqual([/\/cursery\/dist\//]);
+    expect(setupFiles).toEqual(["cursery/testing/setup"]);
+  });
+
+  it("applies once alongside the Vite plugin", async () => {
+    const { server, setupFiles } = await settings({}, [app(), cursery()]);
+
+    expect(server.deps.external).toEqual([/\/cursery\/dist\//]);
+    expect(setupFiles).toEqual(["cursery/testing/setup"]);
   });
 });

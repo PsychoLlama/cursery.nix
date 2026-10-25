@@ -12,31 +12,17 @@
  * ```
  *
  * Its settings merge into yours, so your own externals and setup files stay.
+ * The Vite plugin applies the same settings in Vitest, so this is only
+ * needed without it.
  */
 
-import type { Plugin, UserConfig } from "vite";
+import type { Plugin } from "vite";
+
+import { settings } from "./settings.ts";
 
 export default function cursery(): Plugin {
   return {
     name: "cursery:vitest",
-
-    config() {
-      return {
-        test: {
-          server: {
-            deps: {
-              // Loads the bindings untransformed. Vite rewrites their
-              // `new URL(..., import.meta.url)` to an `http:` URL, which
-              // Node can't read the `.wasm` file from.
-              external: [/\/cursery\/dist\//],
-            },
-          },
-
-          setupFiles: ["cursery/testing/setup"],
-        },
-
-        // Vitest's `test` isn't in Vite's types without it installed.
-      } as UserConfig;
-    },
+    config: settings,
   };
 }
