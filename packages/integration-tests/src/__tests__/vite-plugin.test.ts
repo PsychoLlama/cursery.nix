@@ -240,7 +240,7 @@ describe("dev", () => {
 
     expect(result?.code).toMatch(/cursery\/dist\/vite-plugin\/runtime\.js"/);
     expect(result?.code).toContain(
-      'from "/app/default.nix?import&cursery:raw"',
+      'from "/app/default.nix?import&cursery:files"',
     );
   });
 
@@ -252,7 +252,7 @@ describe("dev", () => {
     await using dev = await serve(files.root, {});
 
     const { default: sources } =
-      await dev.server.ssrLoadModule("/app?cursery:raw");
+      await dev.server.ssrLoadModule("/app?cursery:files");
     const { evaluate, load } = await dev.server.ssrLoadModule("cursery");
 
     expect(sources).toEqual({
@@ -262,7 +262,7 @@ describe("dev", () => {
     expect(evaluate(`import ${load(sources)}`)).toBe("from the view");
   });
 
-  it("loads app sources by directory", async () => {
+  it("loads app store paths by directory", async () => {
     using files = project({
       "app/default.nix": nix`import ./view.nix`,
       "app/view.nix": nix`"from the view"`,
@@ -270,7 +270,7 @@ describe("dev", () => {
     await using dev = await serve(files.root, {});
 
     const { default: path } = await dev.server.ssrLoadModule(
-      "/app?cursery:source",
+      "/app?cursery:store-path",
     );
     // Vite imports the project's copy, with a store of its own.
     const { evaluate } = await dev.server.ssrLoadModule("cursery");

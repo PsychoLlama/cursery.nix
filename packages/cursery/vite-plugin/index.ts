@@ -33,19 +33,20 @@
  * An app is made of every `.nix` file in its directory and below. Editing
  * any of them hot reloads it, keeping state.
  *
- * `?cursery:source` loads the same files without mounting anything, giving
- * the path of the app's entry, for `mount` and `evaluate` from `cursery`:
+ * `?cursery:store-path` loads the same files without mounting anything,
+ * giving the path of the app's entry, for `mount` and `evaluate` from
+ * `cursery`:
  *
  * ```ts
- * import app from "./app?cursery:source";
+ * import path from "./app?cursery:store-path";
  *
- * mount(document.getElementById("app")!, app);
+ * mount(document.getElementById("app")!, path);
  * ```
  *
- * `?cursery:raw` gives the files themselves, by path, for `load`:
+ * `?cursery:files` gives the files themselves, by path, for `load`:
  *
  * ```ts
- * import files from "./app?cursery:raw";
+ * import files from "./app?cursery:files";
  *
  * const path = load(files);
  * mount(document.getElementById("app")!, `${path}/default.nix`);
@@ -168,10 +169,10 @@ export default function cursery(options: Options = {}): Plugin {
       switch (kind(search)) {
         case "app":
           return { code: entry(file), moduleType: "js" };
-        case "source":
-          return { code: sources(file), moduleType: "js" };
-        case "raw":
-          return { code: raw(file), moduleType: "js" };
+        case "store-path":
+          return { code: storePath(file), moduleType: "js" };
+        case "files":
+          return { code: nixFiles(file), moduleType: "js" };
         default:
           return null;
       }
@@ -180,14 +181,14 @@ export default function cursery(options: Options = {}): Plugin {
 }
 
 /**
- * What `search`, a query string, imports: an app, its source, its files, or
- * neither.
+ * What `search`, a query string, imports: an app, its store path, its files,
+ * or neither.
  */
 function kind(search: string) {
   const params = new URLSearchParams(search);
   if (params.has("cursery:app")) return "app";
-  if (params.has("cursery:source")) return "source";
-  if (params.has("cursery:raw")) return "raw";
+  if (params.has("cursery:store-path")) return "store-path";
+  if (params.has("cursery:files")) return "files";
   return null;
 }
 
@@ -225,7 +226,7 @@ function entry(file: string) {
   // one changes. Accepting statically marks it as the update boundary.
   return `
 import { app } from "cursery/vite-plugin/runtime";
-import files from ${JSON.stringify(`${name}?cursery:raw`)};
+import files from ${JSON.stringify(`${name}?cursery:files`)};
 
 import.meta.hot?.accept();
 
@@ -237,12 +238,12 @@ export default app(files, ${JSON.stringify(name)}, import.meta.hot);
  * The module loading the app at `file` into the store, exporting its
  * entry's path. Replacing it unloads the old files.
  */
-function sources(file: string) {
+function storePath(file: string) {
   const name = basename(file);
 
   return `
 import { load, unload } from "cursery";
-import files from ${JSON.stringify(`./${name}?cursery:raw`)};
+import files from ${JSON.stringify(`./${name}?cursery:files`)};
 
 const path = load(files);
 import.meta.hot?.dispose(() => unload(path));
@@ -255,7 +256,7 @@ export default \`\${path}/${name}\`;
  * The module exporting the app at `file` as files for `load`: its entry,
  * and every `.nix` file beside it and below, by path.
  */
-function raw(file: string) {
+function nixFiles(file: string) {
   const name = `./${basename(file)}`;
 
   return `

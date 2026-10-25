@@ -48,7 +48,7 @@ import ../../article.nix "guides" "testing" [
   (heading "Test the app")
   (paragraph [
     "Import the app with "
-    (code "?cursery:source")
+    (code "?cursery:store-path")
     " and mount it:"
   ])
   (listing "javascript" "src/app.test.js" ''
@@ -57,7 +57,7 @@ import ../../article.nix "guides" "testing" [
     import { expect, test } from "vitest";
 
     // The path of the app's `default.nix`, loaded but not mounted.
-    import app from "./app?cursery:source";
+    import app from "./app?cursery:store-path";
 
     test("counts clicks", () => {
       mount(document.body, app);
@@ -73,7 +73,7 @@ import ../../article.nix "guides" "testing" [
   (heading "Test Nix files")
   (paragraph [
     "Import the app's files with "
-    (code "?cursery:raw")
+    (code "?cursery:files")
     ", and load them. "
     (code "evaluate")
     " can then call any file by its path, with inputs:"
@@ -85,7 +85,7 @@ import ../../article.nix "guides" "testing" [
     import { evaluate, load } from "cursery";
     import { expect, test } from "vitest";
 
-    import files from "./app?cursery:raw";
+    import files from "./app?cursery:files";
 
     const app = load(files);
 
@@ -102,9 +102,9 @@ import ../../article.nix "guides" "testing" [
     " before the tests. It polyfills missing jsdom features."
   ])
   (paragraph [
-    (code "?cursery:source")
+    (code "?cursery:store-path")
     " and "
-    (code "?cursery:raw")
+    (code "?cursery:files")
     " imports need the Vite plugin. Without it, load the app's files with "
     (code "load")
     ", as in "

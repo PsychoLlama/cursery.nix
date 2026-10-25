@@ -92,7 +92,7 @@ import ../../article.nix "reference" "vite-plugin" [
     "Edits hot reload every container the app is mounted into, keeping state. If the edited app fails to mount, the error is logged, and the last working version stays until the next edit."
   ])
 
-  (heading "?cursery:source")
+  (heading "?cursery:store-path")
   (paragraph [
     "Loads the files, and returns the entry's store path, for "
     (code "mount")
@@ -102,14 +102,14 @@ import ../../article.nix "reference" "vite-plugin" [
     api
     ". Edits load a new store path, and unload the old one."
   ])
-  (listing "javascript" "Sources" ''
-    import source from "./app?cursery:source";
+  (listing "javascript" "Store paths" ''
+    import path from "./app?cursery:store-path";
     // "/nix/store/…-source/default.nix"
 
-    evaluate(`(import ''${source}).init`);
+    evaluate(`(import ''${path}).init`);
   '')
 
-  (heading "?cursery:raw")
+  (heading "?cursery:files")
   (paragraph [
     "Returns the files by path, for "
     (code "load")
@@ -118,7 +118,7 @@ import ../../article.nix "reference" "vite-plugin" [
     ". Nothing is loaded automatically."
   ])
   (listing "javascript" "Files" ''
-    import files from "./app?cursery:raw";
+    import files from "./app?cursery:files";
     // { "./default.nix": "…", "./view.nix": "…" }
 
     const path = load(files);
