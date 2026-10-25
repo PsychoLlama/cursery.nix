@@ -25,6 +25,12 @@ export default defineConfig({
             client: { type: "nix", path: "./hello-world/src" },
           },
         },
+        "playground-frame/index.html": {
+          entry: {
+            server: "./playground-frame/page.nix",
+            client: { type: "manual", path: "./playground-frame/main.ts" },
+          },
+        },
         "todomvc/index.html": {
           entry: {
             server: "./todomvc/page.nix",

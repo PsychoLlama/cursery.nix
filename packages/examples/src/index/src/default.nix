@@ -1,8 +1,6 @@
 let
   inherit (import <web/dom>) html;
 
-  counter = import ./counter.nix;
-
   header = import ./components/header.nix;
   intro = import ./components/intro.nix;
   demo = import ./components/demo.nix;
@@ -16,17 +14,13 @@ in
 
 {
   init = {
-    counter = counter.init;
+    source = import ./sample.nix;
+    error = null;
     copied = false;
   };
 
-  # Every action but `copied` is the counter's.
-  update =
-    state: action:
-    if action.type == "copied" then
-      state // { copied = action.payload; }
-    else
-      state // { counter = counter.update state.counter action; };
+  # Actions are named after the field they set.
+  update = state: action: state // { ${action.type} = action.payload; };
 
   render = state: [
     (html.div { class = "mx-auto max-w-4xl px-6"; } [
@@ -34,7 +28,7 @@ in
       (html.main { class = "space-y-20 pt-10 pb-20"; } [
         intro
         (html.section [
-          (demo { inherit (state) counter; })
+          (demo { inherit (state) source error; })
           (template { inherit (state) copied; })
         ])
         features
