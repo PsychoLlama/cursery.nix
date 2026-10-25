@@ -67,7 +67,12 @@ import ../../article.nix "reference" "web-io" [
     (code "mount")
     ", with "
     (code "input")
-    " converted to JavaScript. The output is what it returned, or what its promise resolved to."
+    " converted to JavaScript. The output is what it returned, or what its promise resolved to. To define effects, see "
+    (html.a {
+      class = link;
+      href = "/docs/guides/host-io/";
+    } "Host IO")
+    "."
   ])
   (paragraph [
     "Inputs and outputs must be JSON-compatible. "
