@@ -1,25 +1,36 @@
 let
+  inherit (import <web/dom>) html;
   inherit (import ../../prose.nix)
     code
     heading
+    link
     listing
     paragraph
     shell
     ;
 in
 import ../../article.nix "guides" "testing" [
-  (paragraph "Apps are tested with Vitest. Tests run in jsdom, which provides a DOM to mount the app into.")
+  (paragraph [
+    "Apps run in any test environment with a DOM, such as "
+    (html.a {
+      class = link;
+      href = "https://github.com/jsdom/jsdom";
+    } "jsdom")
+    ". This guide uses "
+    (html.a {
+      class = link;
+      href = "https://vitest.dev";
+    } "Vitest")
+    " and "
+    (html.a {
+      class = link;
+      href = "https://testing-library.com/docs/dom-testing-library/intro";
+    } "DOM Testing Library")
+    "."
+  ])
 
   (heading "Set up")
-  (paragraph "Install Vitest and jsdom:")
-  (shell [ "pnpm add -D vitest jsdom" ])
-  (paragraph [
-    "Create "
-    (code "vitest.config.js")
-    " with the plugin from "
-    (code "cursery/vitest")
-    " and the test environment:"
-  ])
+  (shell [ "pnpm add -D vitest jsdom @testing-library/dom" ])
   (listing "javascript" "vitest.config.js" ''
     import cursery from "cursery/vitest";
     import { defineConfig, mergeConfig } from "vitest/config";
@@ -37,53 +48,56 @@ import ../../article.nix "guides" "testing" [
     );
   '')
   (paragraph [
-    "The plugin lets cursery load in Vitest, and stubs the parts of the DOM that jsdom lacks. Its settings are merged with the ones in "
-    (code "test")
-    ". Merging in "
+    (code "cursery/vitest")
+    " keeps Vitest from transforming cursery's WebAssembly bindings, and adds "
+    (code "cursery/testing/setup")
+    " to the setup files. Merging in "
     (code "vite.config.js")
-    " keeps the Vite plugin, which tests use to import the app."
+    " adds the cursery Vite plugin, which handles the "
+    (code "?cursery:source")
+    " imports below."
   ])
 
   (heading "Test the app")
   (paragraph [
-    "Tests import the app with "
+    "Importing an app's directory with "
     (code "?cursery:source")
-    ". It loads the app's files and gives the path of its "
+    " loads its Nix files and exports the path of its "
     (code "default.nix")
-    ", without mounting it. "
+    ". "
     (code "mount")
-    " renders the app into an element, and "
+    " renders the app at that path into an element, replacing its contents, and "
     (code "unmount")
     " removes it."
   ])
   (listing "javascript" "src/app.test.js" ''
+    import { fireEvent, screen } from "@testing-library/dom";
     import { mount, unmount } from "cursery";
     import { expect, test } from "vitest";
 
     import app from "./app?cursery:source";
 
     test("counts clicks", () => {
-      const container = document.createElement("div");
-      mount(container, app);
+      mount(document.body, app);
 
-      container.querySelector('[aria-label="Increment"]').click();
-      expect(container.querySelector("h1").textContent).toBe("Clicked 1 times");
+      fireEvent.click(screen.getByRole("button", { name: "Increment" }));
+      expect(screen.getByRole("heading").textContent).toBe("Clicked 1 times");
 
-      unmount(container);
+      unmount(document.body);
     });
   '')
   (paragraph [
-    "Events dispatch actions, and the app re-renders before "
-    (code "click")
+    "Actions are handled and the app re-rendered synchronously, so the DOM is current when "
+    (code "fireEvent")
     " returns."
   ])
 
   (heading "Test the update function")
   (paragraph [
     (code "evaluate")
-    " runs a Nix expression and returns its value. Import the app to call its "
+    " runs a Nix expression and returns its result as a JavaScript value. Calling the app's "
     (code "update")
-    " directly:"
+    " with a state and an action returns the next state:"
   ])
   (listing "javascript" "src/update.test.js" ''
     import { evaluate } from "cursery";
@@ -100,7 +114,23 @@ import ../../article.nix "guides" "testing" [
     });
   '')
 
-  (heading "Run the tests")
-  (shell [ "pnpm vitest" ])
-  (paragraph "Vitest watches the files and reruns the tests when they change.")
+  (heading "Other test runners")
+  (paragraph [
+    "Import "
+    (code "cursery/testing/setup")
+    " before the tests. It adds "
+    (code "adoptedStyleSheets")
+    ", which jsdom lacks and apps use to apply their styles."
+  ])
+  (paragraph [
+    (code "?cursery:source")
+    " imports need the Vite plugin. Without it, load the app's files with "
+    (code "load")
+    ", as in "
+    (html.a {
+      class = link;
+      href = "/docs/guides/pre-rendering/";
+    } "Pre-rendering")
+    "."
+  ])
 ]
