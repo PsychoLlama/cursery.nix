@@ -66,6 +66,11 @@
         title = "<web/io>";
         description = "Effects, and ways to combine them.";
       }
+      {
+        slug = "web-static";
+        title = "<web/static>";
+        description = "Render apps ahead of time.";
+      }
     ];
   }
 ]
