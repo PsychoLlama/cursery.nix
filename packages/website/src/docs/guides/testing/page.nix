@@ -70,25 +70,28 @@ import ../../article.nix "guides" "testing" [
     });
   '')
 
-  (heading "Test the update function")
+  (heading "Test Nix files")
   (paragraph [
+    "Import the app's files with "
+    (code "?cursery:raw")
+    ", and load them. "
     (code "evaluate")
-    " runs a Nix expression, so tests can call "
-    (code "update")
-    " directly:"
+    " can then call any file by its path, with inputs:"
   ])
-  (listing "javascript" "src/update.test.js" ''
-    import { evaluate } from "cursery";
+  (listing "nix" "src/app/plural.nix" ''
+    count: noun: if count == 1 then "1 ''${noun}" else "''${toString count} ''${noun}s"
+  '')
+  (listing "javascript" "src/plural.test.js" ''
+    import { evaluate, load } from "cursery";
     import { expect, test } from "vitest";
 
-    import app from "./app?cursery:source";
+    import files from "./app?cursery:raw";
 
-    test("increments", () => {
-      const count = evaluate(`
-        (import ''${app}).update 0 { type = "increment"; payload = null; }
-      `);
+    const app = load(files);
 
-      expect(count).toBe(1);
+    test("pluralizes", () => {
+      expect(evaluate(`import ''${app}/plural.nix 1 "click"`)).toBe("1 click");
+      expect(evaluate(`import ''${app}/plural.nix 2 "click"`)).toBe("2 clicks");
     });
   '')
 
@@ -100,6 +103,8 @@ import ../../article.nix "guides" "testing" [
   ])
   (paragraph [
     (code "?cursery:source")
+    " and "
+    (code "?cursery:raw")
     " imports need the Vite plugin. Without it, load the app's files with "
     (code "load")
     ", as in "
