@@ -1,0 +1,9 @@
+/* Only the homepage uses Tailwind, so only its classes are generated. */
+@import "tailwindcss" source(none);
+@source "./src";
+
+@layer base {
+  body {
+    @apply bg-[#f4efe6] font-sans text-[17px] leading-relaxed text-[#2b2a33];
+  }
+}

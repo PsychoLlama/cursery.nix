@@ -1,3 +1,4 @@
+import tailwind from "@tailwindcss/vite";
 import cursery from "cursery/vite-plugin";
 import { defineConfig } from "vite";
 
@@ -5,10 +6,14 @@ export default defineConfig({
   // Serves each example at `/<example>/`.
   root: "src",
   plugins: [
+    tailwind(),
     cursery({
       pages: {
         "index.html": {
-          entry: { server: "./index.nix", client: { type: "static" } },
+          entry: {
+            server: "./index/page.nix",
+            client: { type: "nix", path: "./index/src" },
+          },
         },
         "hello-world/index.html": {
           entry: {
