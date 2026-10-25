@@ -81,6 +81,11 @@
         title = "API";
         description = "The JavaScript exports of the cursery package.";
       }
+      {
+        slug = "vite-plugin";
+        title = "Vite plugin";
+        description = "Import queries that load Nix into the store, and pages.";
+      }
     ];
   }
 ]

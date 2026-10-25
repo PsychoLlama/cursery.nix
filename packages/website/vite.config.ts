@@ -23,6 +23,7 @@ const docs = Object.fromEntries(
     "reference/web-static",
     "reference/web-style",
     "reference/api",
+    "reference/vite-plugin",
   ].map((page) => [
     page === "getting-started" ? "docs/index.html" : `docs/${page}/index.html`,
     {
