@@ -14,6 +14,11 @@
     description = "Recipes for specific tasks, once you know the basics.";
     pages = [
       {
+        slug = "embedding";
+        title = "Embedding apps";
+        description = "Add an app to an existing JavaScript application.";
+      }
+      {
         slug = "pre-rendering";
         title = "Pre-rendering";
         description = "Render a page to an HTML string from Node.";

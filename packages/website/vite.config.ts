@@ -10,6 +10,7 @@ const docs = Object.fromEntries(
     "index",
     "getting-started",
     "guides",
+    "guides/embedding",
     "guides/pre-rendering",
     "guides/testing",
     "reference",
