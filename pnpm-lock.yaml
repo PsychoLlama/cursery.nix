@@ -18,25 +18,6 @@ importers:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@24.19.0)(jiti@2.7.0)
 
-  packages/examples:
-    dependencies:
-      cursery:
-        specifier: workspace:*
-        version: link:../cursery
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.3.3
-        version: 4.3.3(vite@8.3.4(@types/node@24.19.0))
-      tailwindcss:
-        specifier: ^4.3.3
-        version: 4.3.3
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vite:
-        specifier: ^8.3.4
-        version: 8.3.4(@types/node@24.19.0)(jiti@2.7.0)
-
   packages/integration-tests:
     dependencies:
       cursery:
@@ -58,6 +39,25 @@ importers:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.0)(jsdom@30.1.1)(vite@8.3.4(@types/node@24.19.0)(jiti@2.7.0))
+
+  packages/website:
+    dependencies:
+      cursery:
+        specifier: workspace:*
+        version: link:../cursery
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.3.4(@types/node@24.19.0)(jiti@2.7.0))
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.4
+        version: 8.3.4(@types/node@24.19.0)(jiti@2.7.0)
 
   templates/minimal:
     dependencies:
@@ -1240,7 +1240,7 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
-  '@tailwindcss/vite@4.3.3(vite@8.3.4(@types/node@24.19.0))':
+  '@tailwindcss/vite@4.3.3(vite@8.3.4(@types/node@24.19.0)(jiti@2.7.0))':
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3

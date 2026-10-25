@@ -44,7 +44,7 @@ html.section { id = "examples"; } [
   (html.p { class = "mt-6 text-[#4a4853]"; } [
     "This page itself! The entire site is written in Nix, pre-rendered and hydrated. "
     (html.a {
-      href = "${repository}/tree/main/packages/examples/src/index";
+      href = "${repository}/tree/main/packages/website/src/index";
       class = link;
     } "See the source")
     "."

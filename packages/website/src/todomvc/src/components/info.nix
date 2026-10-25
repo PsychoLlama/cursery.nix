@@ -26,7 +26,7 @@ html.footer { class = info; } [
   (html.p "Double-click to edit a todo")
   (html.p [
     (html.a {
-      href = "https://github.com/PsychoLlama/cursery.nix/tree/main/packages/examples/src/todomvc";
+      href = "https://github.com/PsychoLlama/cursery.nix/tree/main/packages/website/src/todomvc";
     } "Written in Nix")
     ", for some reason"
   ])

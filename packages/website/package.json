@@ -1,14 +1,14 @@
 {
-  "name": "examples",
+  "name": "website",
   "private": true,
   "version": "0.0.0",
-  "description": "Example apps built with Vite",
+  "description": "Website for cursery.nix",
   "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/PsychoLlama/cursery.nix",
-    "directory": "packages/examples"
+    "directory": "packages/website"
   },
   "type": "module",
   "scripts": {
