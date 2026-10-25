@@ -21,6 +21,12 @@ html.html { lang = "en"; } [
       type = "image/svg+xml";
       href = "/favicon.svg";
     })
+    # Page views. It skips localhost and frames, like the playground's.
+    (html.script {
+      data-goatcounter = "https://cursery.goatcounter.com/count";
+      async = true;
+      src = "//gc.zgo.at/count.js";
+    })
     assets
   ])
   (html.body [
