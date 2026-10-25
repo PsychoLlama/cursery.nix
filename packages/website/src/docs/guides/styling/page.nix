@@ -47,8 +47,13 @@ import ../../article.nix "guides" "styling" [
     }
   '')
   (paragraph [
-    "Classes are named by a hash of their CSS. The CSS loads as elements using it render, and server renders put it in the page's "
-    (code "assets")
+    "Styles can also select each other, and "
+    (code "image")
+    " makes CSS images from SVG. See "
+    (html.a {
+      class = link;
+      href = "/docs/reference/web-style/";
+    } (code "<web/style>"))
     "."
   ])
 
@@ -61,18 +66,6 @@ import ../../article.nix "guides" "styling" [
   ])
   (listing "nix" "Classes" ''
     html.div { class = [ card "shadow-md" (if active then selected else null) ]; } "Hello"
-  '')
-
-  (heading "Style by another class")
-  (paragraph "A style interpolates as its selector:")
-  (listing "nix" "Selectors" ''
-    icon = css "width: 1rem;";
-
-    card = css '''
-      &:has(''${icon}) {
-        padding-left: 2rem;
-      }
-    ''';
   '')
 
   (heading "Global styles")
@@ -95,24 +88,6 @@ import ../../article.nix "guides" "styling" [
       ''';
     }
   '')
-
-  (heading "Images")
-  (paragraph [
-    (code "image")
-    " turns elements, like an SVG from "
-    (code "<web/dom>")
-    ", into a CSS image:"
-  ])
-  (listing "nix" "Images" ''
-    let
-      inherit (import <web/dom>) svg;
-      inherit (import <web/style>) css image;
-
-      dot = svg.svg { viewBox = "0 0 10 10"; } (svg.circle { cx = 5; cy = 5; r = 5; });
-    in
-    css "list-style-image: ''${image dot};"
-  '')
-  (paragraph "The image is static, so its elements can't have handlers or styles.")
 
   (heading "Other styling tools")
   (paragraph [

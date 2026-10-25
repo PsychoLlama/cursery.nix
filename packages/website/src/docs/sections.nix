@@ -71,6 +71,11 @@
         title = "<web/static>";
         description = "Render apps ahead of time.";
       }
+      {
+        slug = "web-style";
+        title = "<web/style>";
+        description = "Scoped styles and CSS images.";
+      }
     ];
   }
 ]
