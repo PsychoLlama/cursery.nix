@@ -9,6 +9,7 @@ let
   template = import ./components/template.nix;
   features = import ./components/features.nix;
   examples = import ./components/examples.nix;
+  history = import ./components/history.nix;
   thanks = import ./components/thanks.nix;
   footer = import ./components/footer.nix;
 in
@@ -38,6 +39,7 @@ in
         ])
         features
         examples
+        history
         thanks
       ])
       footer
