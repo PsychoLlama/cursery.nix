@@ -4,7 +4,13 @@ import { defineConfig } from "vite";
 
 // The docs are HTML only, a page for each section and one over them all.
 const docs = Object.fromEntries(
-  ["index", "getting-started", "reference"].map((page) => [
+  [
+    "index",
+    "getting-started",
+    "guides",
+    "guides/pre-rendering",
+    "reference",
+  ].map((page) => [
     page === "index" ? "docs/index.html" : `docs/${page}/index.html`,
     {
       entry: {

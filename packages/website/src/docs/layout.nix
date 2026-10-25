@@ -1,6 +1,10 @@
-# The page around each doc, given its title, the slug of its section (or
-# null), and its body.
-{ title, section }:
+# The page around each doc, given its title, the slugs of its section (or
+# null) and page (if it's one of the section's pages), and its body.
+{
+  title,
+  section,
+  page ? null,
+}:
 body: inputs:
 let
   inherit (import <web/dom>) html;
@@ -29,16 +33,31 @@ let
     ])
   ];
 
+  item =
+    href: title: current:
+    html.a {
+      inherit href;
+      class = [
+        "block rounded px-3 py-1.5 hover:text-[#c8553d]"
+        (if current then "bg-[#2b2a33]/[0.07] font-medium" else "text-[#6b6875]")
+      ];
+    } title;
+
   entry =
-    { slug, title, ... }:
+    {
+      slug,
+      title,
+      pages,
+      ...
+    }:
     html.li [
-      (html.a {
-        href = "/docs/${slug}/";
-        class = [
-          "block rounded px-3 py-1.5 hover:text-[#c8553d]"
-          (if slug == section then "bg-[#2b2a33]/[0.07] font-medium" else "text-[#6b6875]")
-        ];
-      } title)
+      (item "/docs/${slug}/" title (slug == section && page == null))
+      (html.ul { class = "mt-1 ml-3 space-y-1 border-l border-[#2b2a33]/15 pl-2"; } (
+        map (
+          entry:
+          html.li (item "/docs/${slug}/${entry.slug}/" entry.title (slug == section && entry.slug == page))
+        ) pages
+      ))
     ];
 
   sidebar = html.nav { class = "md:sticky md:top-8 md:self-start"; } [
