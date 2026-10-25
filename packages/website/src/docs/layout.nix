@@ -13,7 +13,7 @@ let
 
   stylesheet = html.link {
     rel = "stylesheet";
-    href = "/docs/docs.css";
+    href = "/src/docs/docs.css";
   };
 
   header = html.header { class = "flex items-center gap-3 py-8"; } [

@@ -35,33 +35,28 @@ import ../../article.nix "guides" "pages" [
     import { defineConfig } from "vite";
 
     export default defineConfig({
-      root: "src",
-      build: {
-        outDir: "../dist",
-        emptyOutDir: true,
-      },
       plugins: [
         cursery({
           pages: {
             "index.html": {
               entry: {
-                server: "./page.nix",
-                client: { type: "nix", path: "./app" },
+                server: "./src/page.nix",
+                client: { type: "nix", path: "./src/app" },
               },
             },
             "settings/index.html": {
               entry: {
-                server: "./page.nix",
+                server: "./src/page.nix",
                 client: {
                   type: "nix",
-                  path: "./settings",
-                  effects: "./settings/effects.js",
+                  path: "./src/settings",
+                  effects: "./src/settings/effects.js",
                 },
               },
             },
             "about/index.html": {
               entry: {
-                server: "./about.nix",
+                server: "./src/about.nix",
                 client: { type: "static" },
               },
             },
@@ -75,9 +70,7 @@ import ../../article.nix "guides" "pages" [
     (code "settings/index.html")
     " is at "
     (code "/settings/")
-    ". Paths are relative to Vite's "
-    (code "root")
-    ", and must stay inside it."
+    ". Paths are relative to the project root, and must stay inside it."
   ])
   (paragraph "Pages can share a server entry.")
 

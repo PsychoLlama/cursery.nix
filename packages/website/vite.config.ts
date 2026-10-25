@@ -21,7 +21,7 @@ const docs = Object.fromEntries(
     page === "index" ? "docs/index.html" : `docs/${page}/index.html`,
     {
       entry: {
-        server: `./docs/${page}/page.nix`,
+        server: `./src/docs/${page}/page.nix`,
         client: { type: "static" as const },
       },
     },
@@ -29,8 +29,6 @@ const docs = Object.fromEntries(
 );
 
 export default defineConfig({
-  // Serves each example at `/<example>/`.
-  root: "src",
   plugins: [
     tailwind(),
     highlight(),
@@ -38,33 +36,33 @@ export default defineConfig({
       pages: {
         "index.html": {
           entry: {
-            server: "./index/page.nix",
+            server: "./src/index/page.nix",
             client: {
               type: "nix",
-              path: "./index/src",
-              effects: "./index/effects.ts",
+              path: "./src/index/src",
+              effects: "./src/index/effects.ts",
             },
           },
         },
         "hello-world/index.html": {
           entry: {
-            server: "./hello-world/page.nix",
-            client: { type: "nix", path: "./hello-world/src" },
+            server: "./src/hello-world/page.nix",
+            client: { type: "nix", path: "./src/hello-world/src" },
           },
         },
         "playground-frame/index.html": {
           entry: {
-            server: "./playground-frame/page.nix",
-            client: { type: "manual", path: "./playground-frame/main.ts" },
+            server: "./src/playground-frame/page.nix",
+            client: { type: "manual", path: "./src/playground-frame/main.ts" },
           },
         },
         "todomvc/index.html": {
           entry: {
-            server: "./todomvc/page.nix",
+            server: "./src/todomvc/page.nix",
             client: {
               type: "nix",
-              path: "./todomvc/src",
-              effects: "./todomvc/effects.ts",
+              path: "./src/todomvc/src",
+              effects: "./src/todomvc/effects.ts",
             },
           },
         },
@@ -72,8 +70,4 @@ export default defineConfig({
       },
     }),
   ],
-  build: {
-    outDir: "../dist",
-    emptyOutDir: true,
-  },
 });

@@ -25,7 +25,7 @@ import ../../article.nix "guides" "host-io" [
     ":"
   ])
   (listing "javascript" "vite.config.js" ''
-    client: { type: "nix", path: "./app", effects: "./effects.js" },
+    client: { type: "nix", path: "./src/app", effects: "./src/effects.js" },
   '')
   (paragraph [
     "Or pass them to "

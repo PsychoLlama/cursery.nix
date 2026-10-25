@@ -4,7 +4,7 @@ let
 
   stylesheet = html.link {
     rel = "stylesheet";
-    href = "/index/index.css";
+    href = "/src/index/index.css";
   };
 in
 inputs:
