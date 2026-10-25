@@ -25,6 +25,11 @@
         description = "Configure the pages the Vite plugin builds.";
       }
       {
+        slug = "styling";
+        title = "Styling";
+        description = "Scoped classes and global styles.";
+      }
+      {
         slug = "host-io";
         title = "Host IO";
         description = "Call JavaScript from Nix, and dispatch actions from JavaScript.";

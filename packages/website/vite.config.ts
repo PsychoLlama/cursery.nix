@@ -12,6 +12,7 @@ const docs = Object.fromEntries(
     "guides",
     "guides/structure",
     "guides/pages",
+    "guides/styling",
     "guides/host-io",
     "guides/embedding",
     "guides/pre-rendering",

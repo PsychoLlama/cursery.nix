@@ -11,7 +11,7 @@ import { createHighlighter } from "shiki";
 import type { Plugin } from "vite";
 
 const THEME = "one-dark-pro";
-const LANGUAGES = ["html", "javascript", "nix", "typescript"];
+const LANGUAGES = ["css", "html", "javascript", "nix", "typescript"];
 
 /** A `pre` marked with a language, and its contents. */
 const BLOCK =
