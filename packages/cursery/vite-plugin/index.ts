@@ -91,7 +91,13 @@ export default function cursery(options: Options = {}): Plugin {
 
       // Vitest runs in mode "test", which builds no pages.
       if (mode === "test") return settings(config);
-      if (pages.length === 0) return;
+
+      // Pre-bundling the bindings, or the runtime with them, splits their
+      // glue across module URLs, leaving the wasm uninitialized in dev.
+      const result = {
+        optimizeDeps: { exclude: ["cursery", "cursery/vite-plugin/runtime"] },
+      };
+      if (pages.length === 0) return result;
 
       // Pages are build entries, like HTML files in the root.
       const files = pages.map((page) => [page.name, resolve(root, page.name)]);
@@ -103,6 +109,8 @@ export default function cursery(options: Options = {}): Plugin {
           : typeof input === "string" || Array.isArray(input)
             ? [...[input].flat(), ...files.map(([, file]) => file!)]
             : { ...input, ...Object.fromEntries(files) };
+
+      return result;
     },
 
     configureServer(server) {

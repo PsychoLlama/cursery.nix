@@ -279,6 +279,15 @@ describe("dev", () => {
     expect(evaluate(`import ${path}`)).toBe("from the view");
   });
 
+  it("loads the bindings without pre-bundling", async () => {
+    using files = project({});
+    await using dev = await serve(files.root, {});
+
+    expect(dev.server.config.optimizeDeps.exclude).toEqual(
+      expect.arrayContaining(["cursery", "cursery/vite-plugin/runtime"]),
+    );
+  });
+
   it("reports pages that fail to render", async () => {
     using files = project({ "document.nix": nix`_: throw "boom"` });
     await using dev = await serve(files.root, page({ type: "static" }));
