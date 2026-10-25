@@ -18,6 +18,11 @@
         title = "Pre-rendering";
         description = "Render a page to an HTML string from Node.";
       }
+      {
+        slug = "testing";
+        title = "Testing";
+        description = "Test an app with Vitest.";
+      }
     ];
   }
   {
