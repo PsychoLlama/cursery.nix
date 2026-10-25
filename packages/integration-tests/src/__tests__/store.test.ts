@@ -19,6 +19,25 @@ describe("store", () => {
     expect(cursery.evaluate(nix`import ${app.path}/main.nix`)).toBe(42);
   });
 
+  it("reads loaded files", () => {
+    using app = load({
+      "main.nix": nix`builtins.readFile ./notes.txt`,
+      "notes.txt": "milk\neggs\n",
+    });
+
+    expect(cursery.evaluate(nix`import ${app.path}/main.nix`)).toBe(
+      "milk\neggs\n",
+    );
+  });
+
+  it("throws reading files that aren't loaded", () => {
+    using app = load({ "main.nix": nix`builtins.readFile ./missing.txt` });
+
+    expect(() => cursery.evaluate(nix`import ${app.path}/main.nix`)).toThrow(
+      /missing\.txt/,
+    );
+  });
+
   it("lets loaded files use bundled libraries", () => {
     using app = load({ "main.nix": nix`builtins.attrNames (import <web>)` });
 

@@ -14,7 +14,8 @@ in
 
 {
   init = {
-    source = import ./sample.nix;
+    # The demo's starting source, an app in its own right.
+    source = builtins.readFile ./counter.nix;
     error = null;
     copied = false;
   };

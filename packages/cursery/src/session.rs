@@ -14,7 +14,7 @@ use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 use snix_eval::{EvalIO, EvalMode, Evaluation, EvaluationBuilder, GlobalsMap, SourceCode, Value};
 
-use crate::{error::Error, events::Dispatching, memfs::MemoryFilesystem, store};
+use crate::{builtins, error::Error, events::Dispatching, memfs::MemoryFilesystem, store};
 
 #[derive(Debug)]
 pub(crate) struct Session {
@@ -88,8 +88,8 @@ impl Session {
 }
 
 /// Evaluation is pure: impure builtins are unavailable. Loaded files are
-/// importable by path, and bundled libraries through the search path as
-/// `<web>`.
+/// importable by path and readable with `builtins.readFile`, and bundled
+/// libraries are importable through the search path as `<web>`.
 fn builder<'env>(
     filesystem: &MemoryFilesystem,
     bundled_path: &Path,
@@ -98,6 +98,7 @@ fn builder<'env>(
     Evaluation::builder_pure()
         .io_handle(io)
         .enable_import()
+        .add_builtins(builtins::builtins())
         // Only `web/` is exposed, keeping internal modules out of `<web/...>`.
         .nix_path(Some(format!("web={}", bundled_path.join("web").display())))
 }

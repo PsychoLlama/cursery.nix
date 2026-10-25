@@ -1,6 +1,7 @@
 //! WASM bindings for evaluating Nix.
 
 mod app;
+mod builtins;
 mod calls;
 mod effects;
 mod error;
@@ -94,8 +95,8 @@ pub fn unload(path: &str) -> Result<(), JsError> {
 /// become objects with a null prototype.
 ///
 /// Evaluation is pure: impure builtins are unavailable. Loaded files are
-/// importable by path, and bundled libraries through the search path as
-/// `<web>`.
+/// importable by path and readable with `builtins.readFile`, and bundled
+/// libraries are importable through the search path as `<web>`.
 ///
 /// # Errors
 ///
