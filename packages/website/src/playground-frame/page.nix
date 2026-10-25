@@ -24,6 +24,7 @@ let
       color: white;
       background: #c8553d;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     button:hover {
