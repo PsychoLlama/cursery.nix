@@ -1,8 +1,44 @@
 # An editor next to the app it describes, running in the playground frame.
 let
-  inherit (import <web/dom>) html;
+  inherit (import <web/dom>) html svg;
   inherit (import <web/io>) call dispatch pipe;
   inherit (import ../theme.nix) heading frame;
+
+  # A circular arrow, from Lucide.
+  reload =
+    svg.svg
+      {
+        class = "size-3.5";
+        viewBox = "0 0 24 24";
+        fill = "none";
+        stroke = "currentColor";
+        stroke-width = 2;
+        stroke-linecap = "round";
+        stroke-linejoin = "round";
+        aria-hidden = "true";
+      }
+      [
+        (svg.path { d = "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"; })
+        (svg.path { d = "M21 3v5h-5"; })
+      ];
+
+  # Browser chrome over the preview, to restart the app from `init`.
+  toolbar =
+    html.div
+      { class = "flex items-center gap-1.5 border-b border-[#2b2a33]/10 bg-[#efe9df] px-3 py-1.5"; }
+      [
+        (map (_: html.span { class = "size-2.5 rounded-full bg-[#2b2a33]/15"; }) [
+          1
+          2
+          3
+        ])
+        (html.button {
+          class = "ml-auto rounded p-1 text-[#6b6875] transition hover:bg-[#2b2a33]/10 hover:text-[#2b2a33] noscript:hidden";
+          title = "Reload";
+          aria-label = "Reload";
+          on.click = _: call "reload" null;
+        } reload)
+      ];
 
   # Syntax highlighting, tokenized with a regex. Good enough for the demo.
   keywords = [
@@ -82,16 +118,19 @@ html.div [
           ])
         ])
 
-        (html.div { class = "grid min-h-40 bg-[#fbf8f2]"; } [
-          (html.iframe {
-            id = "demo-preview";
-            src = "/playground-frame/";
-            title = "Demo";
-            class = "size-full min-h-40 noscript:hidden";
-          })
-          (html.p {
-            class = "hidden place-self-center p-6 text-center text-sm text-[#6b6875] noscript:block";
-          } "Enable JavaScript to try the demo.")
+        (html.div { class = "flex flex-col bg-[#fbf8f2]"; } [
+          toolbar
+          (html.div { class = "grid min-h-40 flex-1"; } [
+            (html.iframe {
+              id = "demo-preview";
+              src = "/playground-frame/";
+              title = "Demo";
+              class = "size-full noscript:hidden";
+            })
+            (html.p {
+              class = "hidden place-self-center p-6 text-center text-sm text-[#6b6875] noscript:block";
+            } "Enable JavaScript to try the demo.")
+          ])
         ])
       ]
     )

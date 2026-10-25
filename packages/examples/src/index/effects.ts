@@ -47,4 +47,7 @@ export default {
 
   /** Renders `source` in the frame, resolving to its error, or `null`. */
   preview: render,
+
+  /** Reloads the frame. Once ready, it renders the editor from scratch. */
+  reload: () => frame().contentWindow!.location.reload(),
 };
