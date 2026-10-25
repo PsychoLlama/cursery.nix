@@ -16,6 +16,11 @@ html.html { lang = "en"; } [
       content = "width=device-width, initial-scale=1";
     })
     (html.title title)
+    (html.link {
+      rel = "icon";
+      type = "image/svg+xml";
+      href = "/favicon.svg";
+    })
     assets
   ])
   (html.body [

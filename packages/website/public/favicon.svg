@@ -1,0 +1,51 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+  width="512"
+  height="512"
+>
+  <metadata>
+    <rdf:RDF
+      xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+      xmlns:dc="http://purl.org/dc/elements/1.1/"
+      xmlns:cc="http://creativecommons.org/ns#"
+    >
+      <cc:Work rdf:about="">
+        <dc:title>mdi:lambda</dc:title>
+        <dc:identifier>mdi:lambda</dc:identifier>
+        <dc:creator>
+          <cc:Agent rdf:about="https://github.com/Templarian/MaterialDesign">
+            <dc:title>Pictogrammers</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:source
+          rdf:resource="https://github.com/Templarian/MaterialDesign"
+        />
+        <dc:rights>
+          <cc:Agent><dc:title>Apache 2.0</dc:title></cc:Agent>
+        </dc:rights>
+        <cc:license
+          rdf:resource="https://github.com/Templarian/MaterialDesign/blob/master/LICENSE"
+        />
+        <dc:rightsHolder>SPDX:Apache-2.0</dc:rightsHolder>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs>
+    <clipPath id="icon-clip-icon">
+      <rect width="512" height="512" rx="92.16" ry="92.16" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#icon-clip-icon)">
+    <rect width="512" height="512" fill="#3e63dd" />
+    <g
+      transform="translate(0 0) scale(21.333333333333332)"
+      style="color: #ffffff"
+    >
+      <path
+        fill="currentColor"
+        d="m6 20l4.16-12.09L9.34 6H8V4h2c.42 0 .78.26.93.63L16.66 18H18v2h-2c-.43 0-.79-.27-.93-.64l-3.74-8.71L8.12 20z"
+      />
+    </g>
+  </g>
+</svg>
