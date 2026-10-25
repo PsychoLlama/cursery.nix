@@ -12,7 +12,11 @@ export default defineConfig({
         "index.html": {
           entry: {
             server: "./index/page.nix",
-            client: { type: "nix", path: "./index/src" },
+            client: {
+              type: "nix",
+              path: "./index/src",
+              effects: "./index/effects.ts",
+            },
           },
         },
         "hello-world/index.html": {

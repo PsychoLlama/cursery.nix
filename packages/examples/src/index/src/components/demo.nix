@@ -1,4 +1,4 @@
-# The counter, running next to its source, and how to start your own.
+# The counter, running next to its source.
 let
   inherit (import <web/dom>) html;
   inherit (import ../theme.nix) heading frame;
@@ -52,7 +52,7 @@ let
 in
 
 { counter }:
-html.section [
+html.div [
   (heading "Try it")
   (html.p { class = "mt-2"; } [
     "This page is a cursery.nix app. Here's a piece of it, running next to its source."
@@ -74,14 +74,4 @@ html.section [
       ]
     )
   ])
-  (html.p { class = "mt-8 text-sm text-[#6b6875]"; } "Start from the flake template:")
-  (html.pre
-    {
-      class = "${frame} mt-3 overflow-x-auto bg-[#2b2a33] px-4 py-3 font-mono text-sm text-[#e8e1d4]";
-    }
-    [
-      (html.span { class = "text-[#b8d68a] select-none"; } "$ ")
-      "nix flake init -t github:PsychoLlama/cursery.nix"
-    ]
-  )
 ]
