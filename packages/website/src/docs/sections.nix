@@ -61,6 +61,11 @@
         title = "<web/dom>";
         description = "Elements, attributes, event handlers, and children.";
       }
+      {
+        slug = "web-io";
+        title = "<web/io>";
+        description = "Effects, and ways to combine them.";
+      }
     ];
   }
 ]

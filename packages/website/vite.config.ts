@@ -19,6 +19,7 @@ const docs = Object.fromEntries(
     "guides/testing",
     "reference",
     "reference/web-dom",
+    "reference/web-io",
   ].map((page) => [
     page === "getting-started" ? "docs/index.html" : `docs/${page}/index.html`,
     {

@@ -148,7 +148,7 @@ import ../../article.nix "reference" "web-dom" [
     " maps event names to handlers. A handler takes the event and returns an effect from "
     (html.a {
       class = link;
-      href = "/docs/guides/host-io/";
+      href = "/docs/reference/web-io/";
     } (code "<web/io>"))
     ", or "
     (code "null")
