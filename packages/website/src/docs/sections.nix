@@ -19,6 +19,11 @@
         description = "The parts of an app, and the page it renders into.";
       }
       {
+        slug = "pages";
+        title = "Pages";
+        description = "Configure the pages the Vite plugin builds.";
+      }
+      {
         slug = "host-io";
         title = "Host IO";
         description = "Call JavaScript from Nix, and dispatch actions from JavaScript.";
