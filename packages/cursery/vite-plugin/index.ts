@@ -22,10 +22,10 @@
  * Paths are relative to Vite's `root`, and stay inside it. See `Page` for
  * the entries.
  *
- * Apps import from JS with `?cursery=app`, given the app's directory:
+ * Apps import from JS with `?cursery:app`, given the app's directory:
  *
  * ```ts
- * import app from "./app?cursery=app";
+ * import app from "./app?cursery:app";
  *
  * app.mount(document.getElementById("app")!);
  * ```
@@ -151,7 +151,7 @@ export default function cursery(options: Options = {}): Plugin {
 
 /** Whether `search`, a query string, imports an app. */
 const isApp = (search: string) =>
-  new URLSearchParams(search).get("cursery") === "app";
+  new URLSearchParams(search).has("cursery:app");
 
 /** URL paths that serve the page at `name`. */
 function routes(name: string) {
@@ -164,7 +164,7 @@ function routes(name: string) {
 /** The module mounting the app at `path` into its page, with `effects`. */
 function mount(path: string, effects?: string) {
   const imports = [
-    `import app from ${JSON.stringify(`/${path}?cursery=app`)};`,
+    `import app from ${JSON.stringify(`/${path}?cursery:app`)};`,
   ];
   if (effects)
     imports.push(`import effects from ${JSON.stringify(`/${effects}`)};`);

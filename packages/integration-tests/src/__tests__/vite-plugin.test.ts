@@ -124,7 +124,7 @@ describe("build", () => {
     using files = project({
       "document.nix": document,
       "app/default.nix": app,
-      "main.ts": `import app from "./app?cursery=app"; app.mount(document.body);`,
+      "main.ts": `import app from "./app?cursery:app"; app.mount(document.body);`,
     });
 
     const output = await bundle(
@@ -227,7 +227,7 @@ describe("dev", () => {
       await dev.fetch("/@cursery/client/index.html.js")
     ).text();
 
-    expect(code).toMatch(/from "\/app\/default\.nix\?(import&)?cursery=app"/);
+    expect(code).toMatch(/from "\/app\/default\.nix\?(import&)?cursery:app"/);
     expect(code).toContain('from "/effects.ts"');
     expect(code).toContain('document.querySelector("[data-cursery-app]")');
   });
@@ -236,7 +236,7 @@ describe("dev", () => {
     using files = project({ "app/default.nix": app, "main.ts": "" });
     await using dev = await serve(files.root, {});
 
-    const result = await dev.server.transformRequest("/app?cursery=app");
+    const result = await dev.server.transformRequest("/app?cursery:app");
 
     expect(result?.code).toMatch(/cursery\/dist\/vite-plugin\/runtime\.js"/);
     expect(result?.code).toContain('from "/app/default.nix?import&raw"');

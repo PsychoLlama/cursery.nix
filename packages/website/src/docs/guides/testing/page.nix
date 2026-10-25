@@ -47,7 +47,7 @@ import ../../article.nix "guides" "testing" [
   (heading "Test the app")
   (paragraph [
     "Tests import the app with "
-    (code "?cursery=app")
+    (code "?cursery:app")
     ", as in the browser. "
     (code "mount")
     " renders it into an element and returns a function that unmounts it."
@@ -55,7 +55,7 @@ import ../../article.nix "guides" "testing" [
   (listing "javascript" "src/app.test.js" ''
     import { expect, test } from "vitest";
 
-    import app from "./app?cursery=app";
+    import app from "./app?cursery:app";
 
     test("counts clicks", () => {
       const container = document.createElement("div");
