@@ -21,7 +21,7 @@ use std::{
 };
 
 use js_sys::{Array, JSON, Object};
-use snix_eval::EvalMode;
+use snix_eval::{EvalMode, NixAttrs, Value};
 use wasm_bindgen::prelude::*;
 use web_sys::Element;
 
@@ -61,6 +61,10 @@ extern "C" {
     /// Inputs for a server render, as JSON would have them.
     #[wasm_bindgen(typescript_type = "Record<string, unknown>")]
     pub type ServerInputs;
+
+    /// An action's payload, as JSON would have it.
+    #[wasm_bindgen(typescript_type = "unknown")]
+    pub type Payload;
 }
 
 /// Load Nix files into the store and return their store path, e.g.
@@ -180,6 +184,41 @@ pub fn unmount(container: &Element) -> Result<(), JsError> {
     mounts::remove(container)?;
     container.replace_children_with_node_0();
     Ok(())
+}
+
+/// Dispatch an action to the app mounted into `container`, like
+/// `io.dispatch type payload` from a handler, e.g. for messages from a
+/// socket. `update` runs, and the app renders before this returns. An effect
+/// `update` returns runs in its place.
+///
+/// `payload` is converted to Nix as JSON would have it, defaulting to
+/// `null`. To answer, the app can `io.call` an effect.
+///
+/// # Errors
+///
+/// Throws if nothing is mounted there, `payload` isn't JSON data, the app is
+/// rendering, or `update` or an effect fails before anything waits. Failures
+/// after an effect waits, e.g. on a promise, are logged.
+#[wasm_bindgen]
+pub fn dispatch(
+    container: &Element,
+    r#type: &str,
+    payload: Option<Payload>,
+) -> Result<(), JsError> {
+    let payload = match payload {
+        None => Value::Null,
+        Some(payload) => {
+            // `JSON.stringify` returns `undefined` for functions and symbols.
+            let json = JSON::stringify(&payload)
+                .map_err(|_| Error::InvalidPayload)?
+                .as_string()
+                .ok_or(Error::InvalidPayload)?;
+            serde_json::from_str(&json).map_err(|_| Error::InvalidPayload)?
+        }
+    };
+
+    let action = NixAttrs::from_iter([("type", Value::from(r#type)), ("payload", payload)]);
+    Ok(app::send(container, Value::attrs(action))?)
 }
 
 /// Render a page to HTML, e.g. on a server. `path` is its entrypoint: a

@@ -63,6 +63,12 @@ pub(crate) enum Error {
     #[error("Invalid inputs: expected JSON data")]
     InvalidInputs,
 
+    #[error("Invalid payload: expected JSON data")]
+    InvalidPayload,
+
+    #[error("Cannot dispatch while the app is rendering")]
+    Rendering,
+
     #[error("Invalid CSS for class {0:?}: {1}")]
     InvalidStyle(String, Box<Error>),
 

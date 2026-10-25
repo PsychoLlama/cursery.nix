@@ -277,3 +277,144 @@ describe("dispatch", () => {
     });
   });
 });
+
+describe("dispatch from JS", () => {
+  /** Mounts an app with `html` and `io` in scope. */
+  function host(code: string, options: cursery.MountOptions = {}) {
+    using resources = new DisposableStack();
+    const { path } = resources.use(
+      load({
+        "default.nix": nix`let
+          inherit (import <web/dom>) html;
+          io = import <web/io>;
+        in ${code}`,
+      }),
+    );
+    const view = resources.use(mount(path, options));
+    const owned = resources.move();
+
+    return {
+      container: view.container,
+      shown: () =>
+        JSON.parse(
+          view.container.querySelector("pre")!.textContent!,
+        ) as unknown,
+      [Symbol.dispose]: () => owned.dispose(),
+    };
+  }
+
+  /** An app showing the actions it was given. */
+  const log = nix`{
+    init = [ ];
+    update = state: action: state ++ [ action ];
+    render = state: html.pre (builtins.toJSON state);
+  }`;
+
+  it("updates and renders before returning", () => {
+    using app = host(log);
+
+    cursery.dispatch(app.container, "add", { text: "milk", tags: ["a"] });
+
+    expect(app.shown()).toEqual([
+      { type: "add", payload: { text: "milk", tags: ["a"] } },
+    ]);
+  });
+
+  it("defaults the payload to null", () => {
+    using app = host(log);
+
+    cursery.dispatch(app.container, "bare");
+    cursery.dispatch(app.container, "null", null);
+
+    expect(app.shown()).toEqual([
+      { type: "bare", payload: null },
+      { type: "null", payload: null },
+    ]);
+  });
+
+  it("runs the effect `update` returns", () => {
+    const greet = vi.fn();
+    using app = host(
+      nix`{
+        init = null;
+        update = state: action: io.call "greet" action.payload;
+        render = state: html.pre "null";
+      }`,
+      { effects: { greet } },
+    );
+
+    cursery.dispatch(app.container, "greet", "hi");
+
+    expect(greet).toHaveBeenCalledWith("hi");
+  });
+
+  it("throws when `update` fails, keeping the state", () => {
+    using app = host(nix`{
+      init = 0;
+      update = state: action: if action.type == "fail" then throw "boom" else state + 1;
+      render = state: html.pre (builtins.toJSON state);
+    }`);
+
+    cursery.dispatch(app.container, "increment");
+
+    expect(() => cursery.dispatch(app.container, "fail")).toThrow(/boom/);
+    expect(app.shown()).toBe(1);
+  });
+
+  it("throws when an effect fails", () => {
+    using app = host(nix`{
+      init = null;
+      update = state: action: io.call "missing" null;
+      render = state: html.pre "null";
+    }`);
+
+    expect(() => cursery.dispatch(app.container, "call")).toThrow(/missing/);
+  });
+
+  it("rejects payloads that aren't JSON data", () => {
+    using app = host(log);
+
+    expect(() => cursery.dispatch(app.container, "add", () => {})).toThrow(
+      /Invalid payload: expected JSON data/,
+    );
+    expect(() => cursery.dispatch(app.container, "add", 1n)).toThrow(
+      /Invalid payload: expected JSON data/,
+    );
+  });
+
+  it("throws when nothing is mounted", () => {
+    expect(() =>
+      cursery.dispatch(document.createElement("div"), "add"),
+    ).toThrow(/Nothing is mounted in the container/);
+  });
+
+  it("throws while the app renders", () => {
+    // Dispatches when inserted, mid-render.
+    let error: unknown;
+    customElements.define(
+      "dispatch-on-connect",
+      class extends HTMLElement {
+        connectedCallback() {
+          try {
+            cursery.dispatch(this.parentElement!, "again");
+          } catch (thrown) {
+            error = thrown;
+          }
+        }
+      },
+    );
+
+    using app = host(nix`{
+      init = false;
+      update = state: action: true;
+      render = shown: if shown then (import <web/dom>).element "dispatch-on-connect" else null;
+    }`);
+
+    // Custom elements only connect in the document.
+    document.body.append(app.container);
+    using _detach = { [Symbol.dispose]: () => app.container.remove() };
+    cursery.dispatch(app.container, "show");
+
+    expect(String(error)).toMatch(/Cannot dispatch while the app is rendering/);
+  });
+});

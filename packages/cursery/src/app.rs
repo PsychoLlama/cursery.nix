@@ -139,6 +139,20 @@ pub(crate) fn dispatch(container: &Element, event: &Event) -> Result<(), Error> 
     Ok(())
 }
 
+/// See the `dispatch` export. Unlike events, dispatches while committing are
+/// errors: they come from the host, which would lose them silently.
+pub(crate) fn send(container: &Element, action: Value) -> Result<(), Error> {
+    if COMMITTING.get() {
+        return Err(Error::Rendering);
+    }
+
+    let mount = mounts::get(container).ok_or(Error::NotMounted)?;
+    match update(container, action)? {
+        Output::Then(effect) => run(container, &mount, effect),
+        Output::Now(_) | Output::Later(_) => Ok(()),
+    }
+}
+
 /// Runs an effect a handler returned, following `io` chains: each source
 /// runs before its function is called with the output, and whatever the
 /// function returns runs next. Pending functions and `io.catch` handlers
