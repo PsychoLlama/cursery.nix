@@ -165,12 +165,8 @@ describe("events", () => {
     expect(logged(view)).toEqual(["inner", "outer"]);
   });
 
-  it("overrides handlers with `null`", () => {
-    using view = render(
-      logger(
-        nix`html.button { on.click = event: log "a"; } { on.click = null; }`,
-      ),
-    );
+  it("ignores `null` handlers", () => {
+    using view = render(logger(nix`html.button { on.click = null; }`));
 
     view.get("button").click();
 

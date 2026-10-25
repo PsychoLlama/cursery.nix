@@ -63,14 +63,21 @@ describe("dom", () => {
     );
   });
 
-  it("merges repeated attrs", () => {
-    expect(
-      render(nix`html.p { id = "a"; class = "x"; } { class = "y"; key = 1; }`),
-    ).toBe('<p class="y" id="a"></p>');
+  it("rejects attrs after attrs", () => {
+    expect(() => render(nix`html.p { id = "a"; } { id = "b"; }`)).toThrow(
+      /Invalid attrs for <p>: attrs come first, at most once/,
+    );
+  });
+
+  it("rejects attrs after children", () => {
+    expect(() => render(nix`html.p "a" { id = "b"; }`)).toThrow(
+      /Invalid attrs for <p>: attrs come first, at most once/,
+    );
   });
 
   it("appends repeated children", () => {
     expect(render(nix`html.p "a" [ "b" ] "c"`)).toBe("<p>abc</p>");
+    expect(render(nix`html.p { id = "x"; } "a" "b"`)).toBe('<p id="x">ab</p>');
   });
 
   it("converts attribute values to strings", () => {
@@ -84,12 +91,6 @@ describe("dom", () => {
         placeholder = null;
       }`),
     ).toBe('<input min="1" required="" step="0.5" type="number">');
-  });
-
-  it("lets later attrs unset earlier ones", () => {
-    expect(
-      render(nix`html.input { disabled = true; } { disabled = false; }`),
-    ).toBe("<input>");
   });
 
   it("joins lists of classes", () => {

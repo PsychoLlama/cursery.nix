@@ -53,12 +53,12 @@ import ../../article.nix "reference" "web-dom" [
     element "my-widget" { name = "Ada"; }
   '')
   (paragraph [
-    "Builders take attributes and children, both optional, in any order and any number of times. Attribute sets merge, later values winning, and children append:"
+    "Builders take attributes, then children. Both are optional. Attributes come first, at most once, and children append each time they're applied:"
   ])
   (listing "nix" "Applying builders" ''
     html.button
     html.button { type = "button"; } "Save"
-    html.button { type = "button"; } { disabled = true; } [ "Save" "!" ]
+    html.button { type = "button"; } "Save" [ "!" ]
   '')
   (paragraph [
     (code "svg")
@@ -99,7 +99,7 @@ import ../../article.nix "reference" "web-dom" [
     }
   ])
   (paragraph [
-    "Omitted values still override earlier ones. Other types throw. On "
+    "Other types throw. On "
     (code "input")
     ", "
     (code "textarea")
@@ -123,9 +123,7 @@ import ../../article.nix "reference" "web-dom" [
     (code "<web/style>")
     ", "
     (code "null")
-    ", or lists of those, nested to any depth. Classes aren't merged: applying "
-    (code "class")
-    " again replaces it, like any attribute."
+    ", or lists of those, nested to any depth."
   ])
   (listing "nix" "Classes" ''
     html.div { class = [ card "p-4" (if active then "ring" else null) ]; }
@@ -154,11 +152,7 @@ import ../../article.nix "reference" "web-dom" [
     } (code "<web/io>"))
     ", or "
     (code "null")
-    " to ignore it. Handlers merge by event name: applying "
-    (code "on.click")
-    " again replaces that handler, and "
-    (code "null")
-    " removes it."
+    " to ignore it."
   ])
   (listing "nix" "Handlers" ''
     html.input {

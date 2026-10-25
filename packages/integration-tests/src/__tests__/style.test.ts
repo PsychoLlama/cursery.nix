@@ -249,14 +249,6 @@ describe("styles", () => {
     ).toThrow(/Invalid CSS for class "s-bad": SyntaxError/);
   });
 
-  it("drops styles replaced by a later `class`", () => {
-    using _ = render(
-      nix`(html.p { class = css "color: coral;"; }) { class = "x"; }`,
-    );
-
-    expect(loaded().join()).not.toMatch(/coral/);
-  });
-
   it("rejects styles as children", () => {
     expect(() => render(nix`html.p (css "color: red;")`)).toThrow(
       /styles go in `class`/,

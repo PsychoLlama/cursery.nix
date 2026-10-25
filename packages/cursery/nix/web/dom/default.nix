@@ -7,8 +7,11 @@
 #     html.hr
 #   ]
 #
-# Elements are functors: applying one to attrs merges them in, and applying it
-# to children appends them. Both are optional and can repeat.
+# Elements are functors. Attrs are optional and come first, at most once.
+# Children are optional too, and append each time they're applied:
+#
+#   html.p { id = "intro"; } "Hello, " name
+#   html.p "Hello"
 #
 # `class` takes strings, styles from `<web/style>`, `null`, or lists of those:
 #
@@ -42,8 +45,7 @@ let
 
   # Converts an attribute value to the string the renderer sets, the way HTML
   # does. `true` sets an empty attribute (`disabled`), and `false` or `null`
-  # become `null`, which the renderer omits. They stay in attrs so they can
-  # override an earlier value.
+  # become `null`, which the renderer omits.
   attribute =
     name: value:
     if value == null || value == false then
@@ -58,7 +60,7 @@ let
       throw "Invalid attribute \"${name}\" of type ${builtins.typeOf value}: expected a string, number, boolean, or null";
 
   # Event handlers take an event and return an effect, or `null` to ignore
-  # it. A `null` handler overrides an earlier one, like attributes.
+  # it. A `null` handler is none at all.
   handler =
     name: value:
     if builtins.isFunction value || value == null then
@@ -117,23 +119,35 @@ let
     else
       throw "Invalid key of type ${builtins.typeOf value}: expected a string, integer, or null";
 
-  # Applies attrs or children to an element, returning a new element. `key` is
-  # lifted out of attrs to identify the node among its siblings when diffing,
-  # `on` to hold event handlers, and the CSS of styles in `class`.
+  # Applies children to an element, returning a new element that takes more
+  # children, but no attrs.
+  append =
+    self: arg:
+    if isAttrs arg then
+      throw "Invalid attrs for <${self.tag}>: attrs come first, at most once"
+    else
+      self
+      // {
+        children = self.children ++ normalize arg;
+        __functor = append;
+      };
+
+  # Applies attrs or children to a new element. `key` is lifted out of attrs
+  # to identify the node among its siblings when diffing, `on` to hold event
+  # handlers, and the CSS of styles in `class`.
   apply =
     self: arg:
     if isAttrs arg then
       let
-        list = classes arg.class;
+        list = if arg ? class then classes arg.class else [ ];
       in
       self
       // {
-        key = if arg ? key then key arg.key else self.key;
-        on = self.on // handlers (arg.on or { });
-        styles = if arg ? class then styles list else self.styles;
+        key = if arg ? key then key arg.key else null;
+        on = if arg ? on then handlers arg.on else { };
+        styles = styles list;
         attrs =
-          self.attrs
-          // builtins.mapAttrs attribute (
+          builtins.mapAttrs attribute (
             builtins.removeAttrs arg [
               "key"
               "on"
@@ -141,9 +155,10 @@ let
             ]
           )
           // (if arg ? class then { class = className list; } else { });
+        __functor = append;
       }
     else
-      self // { children = self.children ++ normalize arg; };
+      append self arg;
 
   # Creates an element in `namespace` (`null` for HTML), with no attrs or
   # children.
