@@ -10,6 +10,7 @@ authors = ["Jesse Gibson <JesseTheGibson@gmail.com>"]
 publish = false
 license = "GPL-3.0-only"
 repository = "https://github.com/PsychoLlama/cursery.nix"
+homepage = "https://cursery.psychollama.io"
 
 # Distributable wasm. LTO shrinks the output and speeds up evaluation.
 # Size-oriented `opt-level`s were measured: they shave a little more off the

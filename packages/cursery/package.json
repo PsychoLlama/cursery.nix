@@ -5,6 +5,7 @@
   "description": "Framework for web apps authored in Nix",
   "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
   "license": "GPL-3.0-only",
+  "homepage": "https://cursery.psychollama.io",
   "repository": {
     "type": "git",
     "url": "https://github.com/PsychoLlama/cursery.nix",
