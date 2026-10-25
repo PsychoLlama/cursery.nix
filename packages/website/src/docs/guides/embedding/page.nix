@@ -1,7 +1,9 @@
 let
+  inherit (import <web/dom>) html;
   inherit (import ../../prose.nix)
     code
     heading
+    link
     listing
     paragraph
     shell
@@ -53,45 +55,14 @@ import ../../article.nix "guides" "embedding" [
     const unmount = app.mount(document.getElementById("app"));
   '')
 
-  (heading "Add effects")
   (paragraph [
-    "Optionally, Nix can call out to JavaScript for host IO:"
+    "To give the app "
+    (html.a {
+      class = link;
+      href = "/docs/guides/host-io/";
+    } "effects")
+    ", pass them in "
+    (code "mount")
+    "'s options."
   ])
-  (listing "javascript" "main.js" ''
-    app.mount(document.getElementById("app"), {
-      effects: {
-        copy: (text) => navigator.clipboard.writeText(text),
-        paste: () => navigator.clipboard.readText(),
-      },
-    });
-  '')
-  (paragraph [
-    "Handlers call them with "
-    (code "io.call")
-    ", given a name and input. In "
-    (code "io.pipe")
-    ", each step gets the output of the last:"
-  ])
-  (listing "nix" "app/default.nix" ''
-    let
-      inherit (import <web/dom>) html;
-      io = import <web/io>;
-    in
-    {
-      init = "";
-      update = state: action: action.payload;
-      render = text: [
-        (html.button { on.click = event: io.call "copy" "Hello"; } "Copy")
-        (html.button {
-          on.click = event: io.pipe null [
-            (_: io.call "paste" null)
-            # What the promise resolved to.
-            (text: io.dispatch "pasted" text)
-          ];
-        } "Paste")
-        (html.p text)
-      ];
-    }
-  '')
-  (paragraph "Inputs and outputs are converted as JSON would have them.")
 ]

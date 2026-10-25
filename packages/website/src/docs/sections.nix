@@ -14,6 +14,11 @@
     description = "Recipes for specific tasks, once you know the basics.";
     pages = [
       {
+        slug = "host-io";
+        title = "Host IO";
+        description = "Call JavaScript from Nix, and dispatch actions from JavaScript.";
+      }
+      {
         slug = "embedding";
         title = "Embedding apps";
         description = "Add an app to an existing JavaScript application.";
