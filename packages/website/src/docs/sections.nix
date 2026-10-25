@@ -20,7 +20,7 @@
       }
       {
         slug = "embedding";
-        title = "Embedding apps";
+        title = "Embedding";
         description = "Add an app to an existing JavaScript application.";
       }
       {

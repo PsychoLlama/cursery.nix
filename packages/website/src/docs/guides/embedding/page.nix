@@ -13,7 +13,7 @@ import ../../article.nix "guides" "embedding" [
   (paragraph [
     "Pages declared in the Vite plugin's "
     (code "pages")
-    " option mount their apps automatically. To add an app to an existing JavaScript application instead, import it and mount it yourself."
+    " option mount their apps automatically. To add an app to an existing JavaScript application instead, import it and mount it manually."
   ])
 
   (heading "Add the plugin")
@@ -56,13 +56,11 @@ import ../../article.nix "guides" "embedding" [
   '')
 
   (paragraph [
-    "To give the app "
+    "To exchange data with the host, see "
     (html.a {
       class = link;
       href = "/docs/guides/host-io/";
-    } "effects")
-    ", pass them in "
-    (code "mount")
-    "'s options."
+    } "Host IO")
+    "."
   ])
 ]
