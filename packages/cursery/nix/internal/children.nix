@@ -11,6 +11,8 @@
 # - Lists are flattened, however deeply nested.
 # - `null` and booleans render nothing, for conditional rendering.
 # - Strings and numbers become text nodes.
+# - Functions are components, called with no props. Write `footer` for
+#   `footer { }`, and props with defaults stay optional.
 
 let
   # Wraps a string in a text node.
@@ -37,12 +39,14 @@ let
       [ (text children) ]
     else if builtins.isInt children || builtins.isFloat children then
       [ (text (builtins.toJSON children)) ]
+    else if builtins.isFunction children then
+      normalize (children { })
     else if isNode children then
       [ children ]
     else if children._type or null == "style" then
       throw "Invalid child: styles go in `class`"
     else
-      throw "Invalid child of type ${builtins.typeOf children}: expected an element, string, number, null, boolean, or a list of those";
+      throw "Invalid child of type ${builtins.typeOf children}: expected an element, string, number, null, boolean, component, or a list of those";
 in
 
 {

@@ -45,6 +45,14 @@ describe("dom", () => {
     expect(render(nix`html.p [ null true false "kept" ]`)).toBe("<p>kept</p>");
   });
 
+  it("calls components with no props", () => {
+    expect(
+      render(nix`let
+        greeting = { name ? "world" }: html.b "Hello, \${name}";
+      in html.p [ greeting (greeting { name = "Nix"; }) ]`),
+    ).toBe("<p><b>Hello, world</b><b>Hello, Nix</b></p>");
+  });
+
   it("renders numbers as text", () => {
     expect(render(nix`html.p [ 42 " " 1.5 ]`)).toBe("<p>42 1.5</p>");
   });
@@ -140,6 +148,5 @@ describe("dom", () => {
 
   it("rejects invalid children", () => {
     expect(() => render(nix`html.p [ { a = 1; } ]`)).toThrow(/Invalid child/);
-    expect(() => render(nix`html.p (x: x)`)).toThrow(/Invalid child/);
   });
 });

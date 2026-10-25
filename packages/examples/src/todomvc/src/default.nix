@@ -53,7 +53,7 @@ in
   # The list and footer show once there are todos.
   render = state: [
     (html.section { class = app; } [
-      (header { })
+      header
       (
         if state.todos == [ ] then
           null
@@ -70,6 +70,6 @@ in
           ]
       )
     ])
-    (info { })
+    info
   ];
 }

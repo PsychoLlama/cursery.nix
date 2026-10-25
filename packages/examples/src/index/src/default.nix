@@ -29,18 +29,18 @@ in
 
   render = state: [
     (html.div { class = "mx-auto max-w-4xl px-6"; } [
-      (header { })
+      header
       (html.main { class = "space-y-20 pt-10 pb-20"; } [
-        (intro { })
+        intro
         (html.section [
           (demo { inherit (state) counter; })
           (template { inherit (state) copied; })
         ])
-        (features { })
-        (examples { })
-        (thanks { })
+        features
+        examples
+        thanks
       ])
-      (footer { })
+      footer
     ])
   ];
 }
