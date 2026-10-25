@@ -5,38 +5,53 @@ let
   features = [
     {
       name = "Virtual DOM";
-      body = "Views are functions of state. Unchanged elements stay put.";
+      body = [
+        (code "render")
+        " returns a tree of elements. After each update, the new tree is diffed against the old one, and only what changed touches the DOM."
+      ];
     }
     {
       name = "Scoped styles";
-      body = "CSS next to your elements, with hashed class names.";
+      body = [
+        (code "css")
+        " turns a block of CSS into a class, named by its hash. Nest selectors and media queries inside it."
+      ];
     }
     {
       name = "Hot reloading";
       body = [
-        "Edit a "
+        "Save a "
         (code ".nix")
-        " file and the app updates in place, state and all."
+        " file and Vite swaps in the new code. The app keeps its state."
       ];
     }
     {
-      name = "Effects as data";
-      body = "Handlers return descriptions of side effects. The runtime runs them.";
+      name = "Declarative effects";
+      body = [
+        "Effects are values, chained with "
+        (code "io.pipe")
+        " and "
+        (code "io.catch")
+        ". Returned by event handlers or "
+        (code "update")
+        " and executed by the runtime."
+      ];
     }
     {
       name = "Host interop";
       body = [
-        "Call JavaScript functions with "
+        "Pass JavaScript functions to "
+        (code "mount")
+        " and call them from Nix with "
         (code "io.call")
-        ", and wait on the promises they return."
+        ". If one returns a promise, Nix waits for it."
       ];
     }
     {
       name = "Static rendering";
       body = [
-        "Render apps to HTML with "
         (code "renderToString")
-        ", then mount over it in the browser."
+        " renders an app to HTML. The Vite plugin uses it to prerender pages, and the app mounts over them in the browser."
       ];
     }
   ];
