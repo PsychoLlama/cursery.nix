@@ -31,73 +31,51 @@ import ../../article.nix "guides" "testing" [
 
   (heading "Set up")
   (shell [ "pnpm add -D vitest jsdom @testing-library/dom" ])
-  (listing "javascript" "vitest.config.js" ''
-    import cursery from "cursery/vitest";
-    import { defineConfig, mergeConfig } from "vitest/config";
-
-    import vite from "./vite.config.js";
-
-    export default mergeConfig(
-      vite,
-      defineConfig({
-        plugins: [cursery()],
-        test: {
-          environment: "jsdom",
-        },
-      }),
-    );
-  '')
   (paragraph [
-    (code "cursery/vitest")
-    " keeps Vitest from transforming cursery's WebAssembly bindings, and adds "
-    (code "cursery/testing/setup")
-    " to the setup files. Merging in "
+    "Set the test environment in "
     (code "vite.config.js")
-    " adds the cursery Vite plugin, which handles the "
-    (code "?cursery:source")
-    " imports below."
+    ":"
   ])
+  (listing "javascript" "vite.config.js" ''
+    export default defineConfig({
+      // ...
+      test: {
+        environment: "jsdom",
+      },
+    });
+  '')
 
   (heading "Test the app")
   (paragraph [
-    "Importing an app's directory with "
+    "Import the app with "
     (code "?cursery:source")
-    " loads its Nix files and exports the path of its "
-    (code "default.nix")
-    ". "
-    (code "mount")
-    " renders the app at that path into an element, replacing its contents, and "
-    (code "unmount")
-    " removes it."
+    " and mount it:"
   ])
   (listing "javascript" "src/app.test.js" ''
     import { fireEvent, screen } from "@testing-library/dom";
     import { mount, unmount } from "cursery";
     import { expect, test } from "vitest";
 
+    // The path of the app's `default.nix`, loaded but not mounted.
     import app from "./app?cursery:source";
 
     test("counts clicks", () => {
       mount(document.body, app);
 
+      // The app re-renders before `fireEvent` returns.
       fireEvent.click(screen.getByRole("button", { name: "Increment" }));
       expect(screen.getByRole("heading").textContent).toBe("Clicked 1 times");
 
       unmount(document.body);
     });
   '')
-  (paragraph [
-    "Actions are handled and the app re-rendered synchronously, so the DOM is current when "
-    (code "fireEvent")
-    " returns."
-  ])
 
   (heading "Test the update function")
   (paragraph [
     (code "evaluate")
-    " runs a Nix expression and returns its result as a JavaScript value. Calling the app's "
+    " runs a Nix expression, so tests can call "
     (code "update")
-    " with a state and an action returns the next state:"
+    " directly:"
   ])
   (listing "javascript" "src/update.test.js" ''
     import { evaluate } from "cursery";
@@ -118,9 +96,7 @@ import ../../article.nix "guides" "testing" [
   (paragraph [
     "Import "
     (code "cursery/testing/setup")
-    " before the tests. It adds "
-    (code "adoptedStyleSheets")
-    ", which jsdom lacks and apps use to apply their styles."
+    " before the tests. It polyfills missing jsdom features."
   ])
   (paragraph [
     (code "?cursery:source")

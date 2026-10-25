@@ -27,4 +27,9 @@ export default defineConfig({
       },
     }),
   ],
+
+  // [Optional] For tests, with Vitest and jsdom installed.
+  test: {
+    environment: "jsdom",
+  },
 });
