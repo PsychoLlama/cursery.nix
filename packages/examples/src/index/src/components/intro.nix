@@ -1,6 +1,6 @@
 let
   inherit (import <web/dom>) html svg;
-  inherit (import ../theme.nix) link snix;
+  inherit (import ../theme.nix) link;
 
   # An "i" in a circle, from Lucide.
   info =
@@ -33,10 +33,10 @@ html.section [
   (html.p { class = "mt-5 max-w-2xl text-lg"; } [
     "Elements, styles, state, and side effects, all written in Nix. "
     (html.a {
-      href = snix;
+      href = "https://www.npmjs.com/package/cursery";
       class = link;
-    } "Snix")
-    " evaluates it in the browser, a thin TypeScript adapter runs it, and a Vite plugin bundles it."
+    } "Available on npm")
+    " as pre-built WebAssembly."
   ])
   (html.aside
     {
