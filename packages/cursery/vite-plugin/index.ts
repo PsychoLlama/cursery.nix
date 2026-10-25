@@ -32,10 +32,19 @@
  *
  * An app is made of every `.nix` file in its directory and below. Editing
  * any of them hot reloads it, keeping state.
+ *
+ * `?cursery:source` loads the same files without mounting anything, giving
+ * the path of the app's entry, for `mount` and `evaluate` from `cursery`:
+ *
+ * ```ts
+ * import app from "./app?cursery:source";
+ *
+ * mount(document.getElementById("app")!, app);
+ * ```
  */
 
 import { statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type { Plugin } from "vite";
 
 import { type Page, pages as readPages, render } from "./pages.ts";
@@ -112,7 +121,7 @@ export default function cursery(options: Options = {}): Plugin {
       if (source.startsWith(client)) return `\0${source}`;
 
       const [file = "", search = ""] = source.split("?");
-      if (!isApp(search)) return null;
+      if (!kind(search)) return null;
 
       // Like Vite: root-relative, then absolute.
       const candidates = file.startsWith("/")
@@ -143,15 +152,25 @@ export default function cursery(options: Options = {}): Plugin {
       const [file = "", search = ""] = id.split("?");
 
       // Vite adds `import` to imports of unknown file types.
-      if (!isApp(search)) return null;
-      return { code: entry(file), moduleType: "js" };
+      switch (kind(search)) {
+        case "app":
+          return { code: entry(file), moduleType: "js" };
+        case "source":
+          return { code: sources(file), moduleType: "js" };
+        default:
+          return null;
+      }
     },
   };
 }
 
-/** Whether `search`, a query string, imports an app. */
-const isApp = (search: string) =>
-  new URLSearchParams(search).has("cursery:app");
+/** What `search`, a query string, imports: an app, its source, or neither. */
+function kind(search: string) {
+  const params = new URLSearchParams(search);
+  if (params.has("cursery:app")) return "app";
+  if (params.has("cursery:source")) return "source";
+  return null;
+}
 
 /** URL paths that serve the page at `name`. */
 function routes(name: string) {
@@ -181,7 +200,7 @@ app.mount(document.querySelector("[data-cursery-app]"), ${effects ? "{ effects }
 
 /** The module standing in for the app at `file`. */
 function entry(file: string) {
-  const name = `./${file.split("/").pop()}`;
+  const name = `./${basename(file)}`;
 
   // Vite tracks imported files as dependencies, re-running this module when
   // one changes. Accepting statically marks it as the update boundary.
@@ -200,5 +219,30 @@ import.meta.hot?.accept();
 
 const entry = ${JSON.stringify(name)};
 export default app({ ...files, [entry]: source }, entry, import.meta.hot);
+`;
+}
+
+/**
+ * The module loading the app at `file` into the store, exporting its
+ * entry's path. Replacing it unloads the old files.
+ */
+function sources(file: string) {
+  const name = basename(file);
+
+  return `
+import { load, unload } from "cursery";
+import source from ${JSON.stringify(`./${name}?raw`)};
+
+// Globs skip the importing file, i.e. the entry.
+const files = import.meta.glob("./**/*.nix", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+
+const path = load({ ...files, ${JSON.stringify(`./${name}`)}: source });
+import.meta.hot?.dispose(() => unload(path));
+
+export default \`\${path}/${name}\`;
 `;
 }

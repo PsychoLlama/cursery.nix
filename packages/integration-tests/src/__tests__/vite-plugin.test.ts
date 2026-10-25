@@ -242,6 +242,23 @@ describe("dev", () => {
     expect(result?.code).toContain('from "/app/default.nix?import&raw"');
   });
 
+  it("loads app sources by directory", async () => {
+    using files = project({
+      "app/default.nix": nix`import ./view.nix`,
+      "app/view.nix": nix`"from the view"`,
+    });
+    await using dev = await serve(files.root, {});
+
+    const { default: path } = await dev.server.ssrLoadModule(
+      "/app?cursery:source",
+    );
+    // Vite imports the project's copy, with a store of its own.
+    const { evaluate } = await dev.server.ssrLoadModule("cursery");
+
+    expect(path).toMatch(/^\/nix\/store\/\w+-source\/default\.nix$/);
+    expect(evaluate(`import ${path}`)).toBe("from the view");
+  });
+
   it("reports pages that fail to render", async () => {
     using files = project({ "document.nix": nix`_: throw "boom"` });
     await using dev = await serve(files.root, page({ type: "static" }));

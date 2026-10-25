@@ -47,24 +47,29 @@ import ../../article.nix "guides" "testing" [
   (heading "Test the app")
   (paragraph [
     "Tests import the app with "
-    (code "?cursery:app")
-    ", as in the browser. "
+    (code "?cursery:source")
+    ". It loads the app's files and gives the path of its "
+    (code "default.nix")
+    ", without mounting it. "
     (code "mount")
-    " renders it into an element and returns a function that unmounts it."
+    " renders the app into an element, and "
+    (code "unmount")
+    " removes it."
   ])
   (listing "javascript" "src/app.test.js" ''
+    import { mount, unmount } from "cursery";
     import { expect, test } from "vitest";
 
-    import app from "./app?cursery:app";
+    import app from "./app?cursery:source";
 
     test("counts clicks", () => {
       const container = document.createElement("div");
-      const unmount = app.mount(container);
+      mount(container, app);
 
       container.querySelector('[aria-label="Increment"]').click();
       expect(container.querySelector("h1").textContent).toBe("Clicked 1 times");
 
-      unmount();
+      unmount(container);
     });
   '')
   (paragraph [
@@ -76,26 +81,20 @@ import ../../article.nix "guides" "testing" [
   (heading "Test the update function")
   (paragraph [
     (code "evaluate")
-    " runs a Nix expression and returns its value. Load the app's files to call its "
+    " runs a Nix expression and returns its value. Import the app to call its "
     (code "update")
     " directly:"
   ])
   (listing "javascript" "src/update.test.js" ''
-    import { evaluate, load, unload } from "cursery";
+    import { evaluate } from "cursery";
     import { expect, test } from "vitest";
 
-    const files = import.meta.glob("./app/**/*.nix", {
-      query: "?raw",
-      import: "default",
-      eager: true,
-    });
+    import app from "./app?cursery:source";
 
     test("increments", () => {
-      const path = load(files);
       const count = evaluate(`
-        (import ''${path}/app).update 0 { type = "increment"; payload = null; }
+        (import ''${app}).update 0 { type = "increment"; payload = null; }
       `);
-      unload(path);
 
       expect(count).toBe(1);
     });
