@@ -4,10 +4,10 @@ import { defineConfig } from "vite";
 
 import highlight from "./highlight.ts";
 
-// The docs are HTML only, a page for each section and one over them all.
+// The docs are HTML only, a page for each section and guide. Getting started
+// is the landing page.
 const docs = Object.fromEntries(
   [
-    "index",
     "getting-started",
     "guides",
     "guides/structure",
@@ -18,7 +18,7 @@ const docs = Object.fromEntries(
     "guides/testing",
     "reference",
   ].map((page) => [
-    page === "index" ? "docs/index.html" : `docs/${page}/index.html`,
+    page === "getting-started" ? "docs/index.html" : `docs/${page}/index.html`,
     {
       entry: {
         server: `./src/docs/${page}/page.nix`,

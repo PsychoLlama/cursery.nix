@@ -1,17 +1,18 @@
-# The docs' sections, after Diátaxis: lessons, recipes, and facts to look
-# up. Each is a directory with a `page.nix`, served at `/docs/<slug>/`, and
-# its `pages` are subdirectories of it, at `/docs/<slug>/<page>/`.
+# The docs' sections, in the sidebar's order. Each is a directory with a
+# `page.nix`, served at its `href`, and its `pages` are subdirectories of it,
+# at `/docs/<slug>/<page>/`.
 [
   {
     slug = "getting-started";
     title = "Getting started";
-    description = "Lessons that walk you through your first app, step by step.";
+    # The docs' landing page.
+    href = "/docs/";
     pages = [ ];
   }
   {
     slug = "guides";
     title = "Guides";
-    description = "Recipes for specific tasks, once you know the basics.";
+    href = "/docs/guides/";
     pages = [
       {
         slug = "structure";
@@ -48,7 +49,7 @@
   {
     slug = "reference";
     title = "Reference";
-    description = "The API, described precisely: elements, styles, effects, and the Vite plugin.";
+    href = "/docs/reference/";
     pages = [ ];
   }
 ]

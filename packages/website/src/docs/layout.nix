@@ -1,5 +1,5 @@
-# The page around each doc, given its title, the slugs of its section (or
-# null) and page (if it's one of the section's pages), and its body.
+# The page around each doc, given its title, the slugs of its section and
+# page (if it's one of the section's pages), and its body.
 {
   title,
   section,
@@ -47,11 +47,11 @@ let
     {
       slug,
       title,
+      href,
       pages,
-      ...
     }:
     html.li [
-      (item "/docs/${slug}/" title (slug == section && page == null))
+      (item href title (slug == section && page == null))
       (html.ul { class = "mt-1 ml-3 space-y-1 border-l border-[#2b2a33]/15 pl-2"; } (
         map (
           entry:
