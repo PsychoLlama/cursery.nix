@@ -1,4 +1,4 @@
-// Builds the Vite and Vitest plugins. The wasm bindings are built by
+// Builds the Vite and Vitest plugins, and the testing setup. The wasm bindings are built by
 // `bin/build`, into the same `dist`.
 
 import { dts } from "rolldown-plugin-dts";
@@ -16,7 +16,7 @@ export default defineConfig({
         "vite-plugin/index": "vite-plugin/index.ts",
         "vite-plugin/runtime": "vite-plugin/runtime.ts",
         "vitest/index": "vitest/index.ts",
-        "vitest/setup": "vitest/setup.ts",
+        "testing/setup": "testing/setup.ts",
       },
       formats: ["es"],
     },

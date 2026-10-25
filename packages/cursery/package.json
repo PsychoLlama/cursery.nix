@@ -37,6 +37,10 @@
     "./vite-plugin/client": {
       "types": "./vite-plugin/client.d.ts"
     },
+    "./testing/setup": {
+      "types": "./dist/testing/setup.d.ts",
+      "default": "./dist/testing/setup.js"
+    },
     "./vitest": {
       "types": "./dist/vitest/index.d.ts",
       "default": "./dist/vitest/index.js"

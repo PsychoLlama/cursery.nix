@@ -14,7 +14,6 @@
  * Its settings merge into yours, so your own externals and setup files stay.
  */
 
-import { join } from "node:path";
 import type { Plugin, UserConfig } from "vite";
 
 export default function cursery(): Plugin {
@@ -33,7 +32,7 @@ export default function cursery(): Plugin {
             },
           },
 
-          setupFiles: [join(import.meta.dirname, "setup.js")],
+          setupFiles: ["cursery/testing/setup"],
         },
 
         // Vitest's `test` isn't in Vite's types without it installed.

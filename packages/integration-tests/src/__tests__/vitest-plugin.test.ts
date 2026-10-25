@@ -34,9 +34,6 @@ describe("vitest plugin", () => {
   it("adds its setup file after the user's", async () => {
     const { setupFiles } = await settings({ setupFiles: ["./mine.ts"] });
 
-    expect(setupFiles).toEqual([
-      "./mine.ts",
-      expect.stringMatching(/\/cursery\/dist\/vitest\/setup\.js$/),
-    ]);
+    expect(setupFiles).toEqual(["./mine.ts", "cursery/testing/setup"]);
   });
 });

@@ -1,5 +1,6 @@
 /**
- * Runs before each test file (see `index.ts`).
+ * Prepares simulated DOMs like jsdom for apps. Import it before any tests;
+ * `cursery/vitest` adds it to the setup files.
  *
  * jsdom has constructed stylesheets, but can't adopt them, which apps with
  * styles do as they mount. A plain property stands in, so tests can read
