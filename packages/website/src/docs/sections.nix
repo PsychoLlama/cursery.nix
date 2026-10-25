@@ -76,6 +76,11 @@
         title = "<web/style>";
         description = "Scoped styles and CSS images.";
       }
+      {
+        slug = "api";
+        title = "API";
+        description = "The JavaScript exports of the cursery package.";
+      }
     ];
   }
 ]
