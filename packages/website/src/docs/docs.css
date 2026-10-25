@@ -1,0 +1,10 @@
+/* The docs share the homepage's look, so they scan its theme too. */
+@import "tailwindcss" source(none);
+@source ".";
+@source "../index/src/theme.nix";
+
+@layer base {
+  body {
+    @apply bg-[#f4efe6] font-sans text-[17px] leading-relaxed text-[#2b2a33];
+  }
+}

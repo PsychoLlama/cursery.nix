@@ -12,6 +12,10 @@ html.header { class = "flex items-center gap-3 py-8"; } [
       class = link;
     } "Examples")
     (html.a {
+      href = "/docs/";
+      class = link;
+    } "Docs")
+    (html.a {
       href = repository;
       class = link;
     } "GitHub")

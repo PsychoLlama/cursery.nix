@@ -2,6 +2,19 @@ import tailwind from "@tailwindcss/vite";
 import cursery from "cursery/vite-plugin";
 import { defineConfig } from "vite";
 
+// The docs are HTML only, a page for each section and one over them all.
+const docs = Object.fromEntries(
+  ["index", "getting-started", "reference"].map((page) => [
+    page === "index" ? "docs/index.html" : `docs/${page}/index.html`,
+    {
+      entry: {
+        server: `./docs/${page}/page.nix`,
+        client: { type: "static" as const },
+      },
+    },
+  ]),
+);
+
 export default defineConfig({
   // Serves each example at `/<example>/`.
   root: "src",
@@ -41,6 +54,7 @@ export default defineConfig({
             },
           },
         },
+        ...docs,
       },
     }),
   ],
