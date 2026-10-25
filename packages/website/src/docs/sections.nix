@@ -50,6 +50,12 @@
     slug = "reference";
     title = "Reference";
     href = "/docs/reference/";
-    pages = [ ];
+    pages = [
+      {
+        slug = "web-dom";
+        title = "<web/dom>";
+        description = "Elements, attributes, event handlers, and children.";
+      }
+    ];
   }
 ]
