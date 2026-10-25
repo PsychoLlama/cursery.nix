@@ -61,9 +61,18 @@ html.section [
     (html.pre {
       class = "overflow-x-auto bg-[#2b2a33] p-5 font-mono text-sm leading-relaxed text-[#e8e1d4]";
     } (html.code highlight))
-    (html.div {
-      class = "grid min-h-40 place-items-center bg-[#fbf8f2] p-6 [&_button]:rounded-md [&_button]:bg-[#c8553d] [&_button]:px-4 [&_button]:py-2 [&_button]:font-medium [&_button]:whitespace-nowrap [&_button]:text-white [&_button]:hover:bg-[#b2472f] [&_button]:active:translate-y-px";
-    } (app.render counter))
+    (html.div
+      {
+        class = "grid min-h-40 place-items-center bg-[#fbf8f2] p-6 [&_button]:rounded-md [&_button]:bg-[#c8553d] [&_button]:px-4 [&_button]:py-2 [&_button]:font-medium [&_button]:whitespace-nowrap [&_button]:text-white [&_button]:hover:bg-[#b2472f] [&_button]:active:translate-y-px";
+      }
+      [
+        # Prerendered, the counter shows without JavaScript, but does nothing.
+        (html.div { class = "noscript:hidden"; } (app.render counter))
+        (html.p {
+          class = "hidden text-center text-sm text-[#6b6875] noscript:block";
+        } "Enable JavaScript to try the demo.")
+      ]
+    )
   ])
   (html.p { class = "mt-8 text-sm text-[#6b6875]"; } "Start from the flake template:")
   (html.pre
