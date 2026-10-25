@@ -2,6 +2,9 @@
 let
   inherit (import <web/dom>) html;
   theme = import ../index/src/theme.nix;
+
+  # The highlighting theme's background (see `highlight.ts`), for code blocks.
+  background = "bg-[#282c34]";
 in
 {
   inherit (theme) code link;
@@ -9,14 +12,18 @@ in
   heading = html.h2 { class = "mt-12 text-2xl font-semibold tracking-tight"; };
   paragraph = html.p { class = "mt-4"; };
 
-  # Source code, given its file name.
+  # Source code, given its language and file name. Highlighted at build, by
+  # `highlight.ts`.
   listing =
-    name: source:
-    html.figure { class = "${theme.frame} mt-4 bg-[#2b2a33]"; } [
+    language: name: source:
+    html.figure { class = "${theme.frame} mt-4 ${background}"; } [
       (html.figcaption {
         class = "border-b border-white/10 px-4 py-2 font-mono text-xs text-[#e8e1d4]/60";
       } name)
-      (html.pre { class = "overflow-x-auto px-4 py-3 font-mono text-sm text-[#e8e1d4]"; } source)
+      (html.pre {
+        class = "overflow-x-auto px-4 py-3 font-mono text-sm text-[#e8e1d4]";
+        data-language = language;
+      } source)
     ];
 
   # A link to another page, with its title and description.
@@ -41,7 +48,7 @@ in
     commands:
     html.pre
       {
-        class = "${theme.frame} mt-4 overflow-x-auto bg-[#2b2a33] px-4 py-3 font-mono text-sm text-[#e8e1d4]";
+        class = "${theme.frame} mt-4 overflow-x-auto ${background} px-4 py-3 font-mono text-sm text-[#e8e1d4]";
       }
       (
         map (command: [

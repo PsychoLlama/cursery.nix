@@ -2,6 +2,8 @@ import tailwind from "@tailwindcss/vite";
 import cursery from "cursery/vite-plugin";
 import { defineConfig } from "vite";
 
+import highlight from "./highlight.ts";
+
 // The docs are HTML only, a page for each section and one over them all.
 const docs = Object.fromEntries(
   [
@@ -26,6 +28,7 @@ export default defineConfig({
   root: "src",
   plugins: [
     tailwind(),
+    highlight(),
     cursery({
       pages: {
         "index.html": {

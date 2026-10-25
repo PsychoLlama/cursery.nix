@@ -19,7 +19,7 @@ import ../../article.nix "guides" "pre-rendering" [
     (code "html")
     " element."
   ])
-  (listing "src/page.nix" ''
+  (listing "nix" "src/page.nix" ''
     { name }:
     let
       inherit (import <web/dom>) html;
@@ -49,7 +49,7 @@ import ../../article.nix "guides" "pre-rendering" [
 
   (heading "Render it")
   (paragraph "Load the Nix files, then render the page:")
-  (listing "render.js" ''
+  (listing "javascript" "render.js" ''
     import { globSync, readFileSync } from "node:fs";
     import { join } from "node:path";
 
@@ -77,7 +77,7 @@ import ../../article.nix "guides" "pre-rendering" [
     (code "node render.js")
     " prints the HTML:"
   ])
-  (listing "Output" ''
+  (listing "html" "Output" ''
     <!doctype html><html lang="en"><head><title>Hello, Nix… (truncated)
   '')
   (paragraph [
