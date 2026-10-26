@@ -16,6 +16,7 @@ let
       description
     ];
 in
+
 import ../../article.nix "guides" "pages" [
   (paragraph [
     "The Vite plugin builds the pages in its "
@@ -30,6 +31,7 @@ import ../../article.nix "guides" "pages" [
 
   (heading "Declare pages")
   (paragraph "Pages are keyed by their path in the build output:")
+
   (listing "javascript" "vite.config.js" ''
     import cursery from "cursery/vite-plugin";
     import { defineConfig } from "vite";
@@ -65,6 +67,7 @@ import ../../article.nix "guides" "pages" [
       ],
     });
   '')
+
   (paragraph [
     "The dev server serves each page at its route, so "
     (code "settings/index.html")
@@ -72,14 +75,17 @@ import ../../article.nix "guides" "pages" [
     (code "/settings/")
     ". Paths are relative to the project root, and must stay inside it."
   ])
+
   (paragraph "Pages can share a server entry.")
 
   (heading "Clients")
+
   (paragraph [
     "A page's "
     (code "client")
     " has one of three types:"
   ])
+
   (html.ul { class = "mt-4 list-disc space-y-2 pl-6"; } [
     (client "nix" [
       "an app directory at "
@@ -93,6 +99,7 @@ import ../../article.nix "guides" "pages" [
       } "effects")
       "."
     ])
+
     (client "manual" [
       "a JavaScript module at "
       (code "path")
@@ -103,8 +110,10 @@ import ../../article.nix "guides" "pages" [
       } "Embedding")
       "."
     ])
+
     (client "static" "no client. The page is HTML only.")
   ])
+
   (paragraph [
     "The client decides the server entry's inputs. Only "
     (code "nix")

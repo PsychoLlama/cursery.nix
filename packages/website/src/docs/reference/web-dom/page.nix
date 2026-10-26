@@ -22,16 +22,19 @@ let
       ) entries
     );
 in
+
 import ../../article.nix "reference" "web-dom" [
   (paragraph [
     "Builders for virtual DOM trees. Apps return them from "
     (code "render")
     ", and server entries return them as pages."
   ])
+
   (listing "nix" "Exports" ''
     let
       inherit (import <web/dom>) html svg element text;
     in
+
     html.div { class = "card"; } [
       (html.h1 "Title")
       "Some text"
@@ -39,6 +42,7 @@ import ../../article.nix "reference" "web-dom" [
   '')
 
   (heading "Elements")
+
   (paragraph [
     (code "html")
     " has a builder for each HTML element, and "
@@ -47,19 +51,23 @@ import ../../article.nix "reference" "web-dom" [
     (code "element")
     " builds any other tag, like a custom element:"
   ])
+
   (listing "nix" "Builders" ''
     html.p "Hello"
     svg.circle { cx = 5; cy = 5; r = 5; }
     element "my-widget" { name = "Ada"; }
   '')
+
   (paragraph [
     "Builders take attributes, then children. Both are optional. Attributes come first, at most once, and children append each time they're applied:"
   ])
+
   (listing "nix" "Applying builders" ''
     html.button
     html.button { type = "button"; } "Save"
     html.button { type = "button"; } "Save" [ "!" ]
   '')
+
   (paragraph [
     (code "svg")
     " is separate from "
@@ -72,6 +80,7 @@ import ../../article.nix "reference" "web-dom" [
   ])
 
   (heading "Attributes")
+
   (terms [
     {
       term = "string";
@@ -98,6 +107,7 @@ import ../../article.nix "reference" "web-dom" [
       description = "omitted.";
     }
   ])
+
   (paragraph [
     "Other types throw. On "
     (code "input")
@@ -117,6 +127,7 @@ import ../../article.nix "reference" "web-dom" [
   ])
 
   (heading "Classes")
+
   (paragraph [
     (code "class")
     " takes strings, styles from "
@@ -125,11 +136,13 @@ import ../../article.nix "reference" "web-dom" [
     (code "null")
     ", or lists of those, nested to any depth."
   ])
+
   (listing "nix" "Classes" ''
     html.div { class = [ card "p-4" (if active then "ring" else null) ]; }
   '')
 
   (heading "Keys")
+
   (paragraph [
     (code "key")
     " identifies an element among its siblings, so it's patched in place rather than recreated when siblings come, go, or reorder. Keys are strings or integers, and "
@@ -138,11 +151,13 @@ import ../../article.nix "reference" "web-dom" [
     (code "\"1\"")
     ". It isn't rendered."
   ])
+
   (listing "nix" "Keys" ''
     html.ul (map (item: html.li { key = item.id; } item.text) items)
   '')
 
   (heading "Event handlers")
+
   (paragraph [
     (code "on")
     " maps event names to handlers. A handler takes the event and returns an effect from "
@@ -154,13 +169,16 @@ import ../../article.nix "reference" "web-dom" [
     (code "null")
     " to ignore it."
   ])
+
   (listing "nix" "Handlers" ''
     html.input {
       on.input = event: io.dispatch "typed" event.target.value;
       on.keydown = event: if event.key == "Escape" then io.dispatch "cancel" null else null;
     }
   '')
+
   (paragraph "The event is a snapshot:")
+
   (terms [
     {
       term = "type, key, shiftKey, ...";
@@ -185,11 +203,13 @@ import ../../article.nix "reference" "web-dom" [
       ];
     }
   ])
+
   (paragraph [
     "To run "
     (code "preventDefault")
     " with other effects, combine them:"
   ])
+
   (listing "nix" "Several effects" ''
     html.form {
       on.submit = event: io.all [ event.preventDefault (io.dispatch "save" null) ];
@@ -197,6 +217,7 @@ import ../../article.nix "reference" "web-dom" [
   '')
 
   (heading "Children")
+
   (terms [
     {
       term = "element";
@@ -231,6 +252,7 @@ import ../../article.nix "reference" "web-dom" [
       ];
     }
   ])
+
   (paragraph [
     "Other types throw. "
     (code "text")

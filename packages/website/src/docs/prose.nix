@@ -1,4 +1,5 @@
 # Pieces for writing docs.
+
 let
   inherit (import <web/dom>) html;
   theme = import ../index/src/theme.nix;
@@ -6,6 +7,7 @@ let
   # The highlighting theme's background (see `highlight.ts`), for code blocks.
   background = "bg-[#282c34]";
 in
+
 {
   inherit (theme) code link;
 
@@ -13,6 +15,7 @@ in
   # for "io.dispatch". The link shows on hover.
   heading =
     title:
+
     let
       letters = string: builtins.genList (i: builtins.substring i 1 string) 26;
       lower =
@@ -24,6 +27,7 @@ in
       );
       slug = builtins.concatStringsSep "-" words;
     in
+
     html.h2
       {
         id = slug;
@@ -47,6 +51,7 @@ in
       (html.figcaption {
         class = "border-b border-white/10 px-4 py-2 font-mono text-xs text-[#e8e1d4]/60";
       } name)
+
       (html.pre {
         class = "overflow-x-auto px-4 py-3 font-mono text-sm text-[#e8e1d4]";
         data-language = language;

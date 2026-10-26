@@ -16,6 +16,7 @@ let
       description
     ];
 in
+
 import ../section.nix "getting-started" [
   (paragraph [
     "Start a new app from the flake template. You'll need "
@@ -28,11 +29,14 @@ import ../section.nix "getting-started" [
 
   (heading "Create the app")
   (paragraph "Make a directory for it and fill it from the template:")
+
   (shell [
     "mkdir my-app && cd my-app"
     "nix flake init -t github:PsychoLlama/cursery.nix"
   ])
+
   (paragraph "It's a Vite project with a counter app:")
+
   (html.ul { class = "mt-4 list-disc space-y-2 pl-6"; } [
     (file "src/app/default.nix" "the app: its state, how actions change it, and what it renders.")
     (file "src/page.nix" "the HTML page around the app, rendered ahead of time.")
@@ -42,11 +46,13 @@ import ../section.nix "getting-started" [
 
   (heading "Start the dev server")
   (paragraph "Enter the dev shell, install dependencies, and start Vite:")
+
   (shell [
     "nix develop"
     "pnpm install"
     "pnpm dev"
   ])
+
   (paragraph [
     "Open "
     (html.a {
@@ -60,6 +66,7 @@ import ../section.nix "getting-started" [
 
   (heading "Build for production")
   (shell [ "pnpm build" ])
+
   (paragraph [
     "The site lands in "
     (code "dist/")

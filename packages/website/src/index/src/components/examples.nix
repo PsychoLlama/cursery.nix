@@ -24,6 +24,7 @@ in
 { }:
 html.section { id = "examples"; } [
   (heading "Examples")
+
   (html.ul { class = "mt-6 grid gap-6 sm:grid-cols-2"; } (
     map (
       example:
@@ -41,6 +42,7 @@ html.section { id = "examples"; } [
       ]
     ) examples
   ))
+
   (html.p { class = "mt-6 text-[#4a4853]"; } [
     "This page itself! The entire site is written in Nix, pre-rendered and hydrated. "
     (html.a {

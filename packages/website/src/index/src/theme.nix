@@ -1,7 +1,9 @@
 # Pieces the components share.
+
 let
   inherit (import <web/dom>) html;
 in
+
 {
   repository = "https://github.com/PsychoLlama/cursery.nix";
   snix = "https://snix.dev";

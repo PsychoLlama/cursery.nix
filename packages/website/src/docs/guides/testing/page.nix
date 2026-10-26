@@ -9,6 +9,7 @@ let
     shell
     ;
 in
+
 import ../../article.nix "guides" "testing" [
   (paragraph [
     "Apps run in any test environment with a DOM, such as "
@@ -31,11 +32,13 @@ import ../../article.nix "guides" "testing" [
 
   (heading "Set up")
   (shell [ "pnpm add -D vitest jsdom @testing-library/dom" ])
+
   (paragraph [
     "Set the test environment in "
     (code "vite.config.js")
     ":"
   ])
+
   (listing "javascript" "vite.config.js" ''
     export default defineConfig({
       // ...
@@ -46,11 +49,13 @@ import ../../article.nix "guides" "testing" [
   '')
 
   (heading "Test the app")
+
   (paragraph [
     "Import the app with "
     (code "?cursery:store-path")
     " and mount it:"
   ])
+
   (listing "javascript" "src/app.test.js" ''
     import { fireEvent, screen } from "@testing-library/dom";
     import { mount, unmount } from "cursery";
@@ -71,6 +76,7 @@ import ../../article.nix "guides" "testing" [
   '')
 
   (heading "Test Nix files")
+
   (paragraph [
     "Import the app's files with "
     (code "?cursery:files")
@@ -78,9 +84,11 @@ import ../../article.nix "guides" "testing" [
     (code "evaluate")
     " can then call any file by its path, with inputs:"
   ])
+
   (listing "nix" "src/app/plural.nix" ''
     count: noun: if count == 1 then "1 ''${noun}" else "''${toString count} ''${noun}s"
   '')
+
   (listing "javascript" "src/plural.test.js" ''
     import { evaluate, load } from "cursery";
     import { expect, test } from "vitest";
@@ -96,11 +104,13 @@ import ../../article.nix "guides" "testing" [
   '')
 
   (heading "Other test runners")
+
   (paragraph [
     "Import "
     (code "cursery/testing/setup")
     " before the tests. It polyfills missing jsdom features."
   ])
+
   (paragraph [
     (code "?cursery:store-path")
     " and "

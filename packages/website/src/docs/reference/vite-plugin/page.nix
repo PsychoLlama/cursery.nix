@@ -13,6 +13,7 @@ let
     href = "/docs/reference/api/";
   } "API";
 in
+
 import ../../article.nix "reference" "vite-plugin" [
   (paragraph [
     "A "
@@ -26,6 +27,7 @@ import ../../article.nix "reference" "vite-plugin" [
     (code "/nix/store")
     ". It can also render pages from Nix."
   ])
+
   (listing "javascript" "vite.config.js" ''
     import cursery from "cursery/vite-plugin";
     import { defineConfig } from "vite";
@@ -34,6 +36,7 @@ import ../../article.nix "reference" "vite-plugin" [
       plugins: [cursery()],
     });
   '')
+
   (paragraph [
     "To declare server and client entrypoints, see "
     (html.a {
@@ -42,7 +45,9 @@ import ../../article.nix "reference" "vite-plugin" [
     } "Pages")
     "."
   ])
+
   (paragraph "For TypeScript, add the queries' types:")
+
   (listing "jsonc" "tsconfig.json" ''
     {
       "compilerOptions": {
@@ -53,6 +58,7 @@ import ../../article.nix "reference" "vite-plugin" [
   '')
 
   (heading "Imports")
+
   (paragraph [
     "Each query takes a directory with a "
     (code "default.nix")
@@ -62,6 +68,7 @@ import ../../article.nix "reference" "vite-plugin" [
     (code ".nix")
     " file beside it and below. Edits to any of them update the import."
   ])
+
   (paragraph [
     "Relative paths resolve from the importing module. Paths starting with "
     (code "/")
@@ -69,9 +76,11 @@ import ../../article.nix "reference" "vite-plugin" [
   ])
 
   (heading "?cursery:app")
+
   (listing "javascript" "Signature" ''
     app.mount(container, options?)
   '')
+
   (paragraph [
     "Loads the files, and renders the app into the element "
     (code "container")
@@ -83,16 +92,19 @@ import ../../article.nix "reference" "vite-plugin" [
     api
     ". Returns a function that unmounts it. Throws if the app fails to mount."
   ])
+
   (listing "javascript" "Mounting" ''
     import app from "./app?cursery:app";
 
     const unmount = app.mount(document.getElementById("app"));
   '')
+
   (paragraph [
     "Edits hot reload every container the app is mounted into, keeping state. If the edited app fails to mount, the error is logged, and the last working version stays until the next edit."
   ])
 
   (heading "?cursery:store-path")
+
   (paragraph [
     "Loads the files, and returns the entry's store path, for "
     (code "mount")
@@ -102,6 +114,7 @@ import ../../article.nix "reference" "vite-plugin" [
     api
     ". Edits load a new store path, and unload the old one."
   ])
+
   (listing "javascript" "Store paths" ''
     import path from "./app?cursery:store-path";
     // "/nix/store/…-source/default.nix"
@@ -110,6 +123,7 @@ import ../../article.nix "reference" "vite-plugin" [
   '')
 
   (heading "?cursery:files")
+
   (paragraph [
     "Returns the files by path, for "
     (code "load")
@@ -117,6 +131,7 @@ import ../../article.nix "reference" "vite-plugin" [
     api
     ". Nothing is loaded automatically."
   ])
+
   (listing "javascript" "Files" ''
     import files from "./app?cursery:files";
     // { "./default.nix": "…", "./view.nix": "…" }

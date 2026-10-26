@@ -60,6 +60,7 @@ in
 { }:
 html.section [
   (heading "Features")
+
   (html.ul { class = "mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2"; } (
     map (
       feature:

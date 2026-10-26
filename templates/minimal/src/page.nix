@@ -13,6 +13,7 @@ in
 html.html { lang = "en"; } [
   (html.head [
     (html.meta { charset = "utf-8"; })
+
     (html.meta {
       name = "viewport";
       content = "width=device-width, initial-scale=1";

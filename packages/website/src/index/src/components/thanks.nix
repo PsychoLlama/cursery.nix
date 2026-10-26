@@ -6,6 +6,7 @@ in
 { }:
 html.section [
   (heading "Thanks, Snix")
+
   (html.p { class = "mt-2 text-[#4a4853]"; } [
     (html.a {
       href = snix;

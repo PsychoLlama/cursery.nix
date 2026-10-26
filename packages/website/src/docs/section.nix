@@ -1,9 +1,11 @@
 # A section's front page, given its slug and body.
 slug: body:
+
 let
   inherit (import <web/dom>) html;
   section = builtins.head (builtins.filter (section: section.slug == slug) (import ./sections.nix));
 in
+
 import ./layout.nix
   {
     inherit (section) title;

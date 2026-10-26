@@ -44,16 +44,20 @@ let
 in
 
 { todos, filter }:
+
 let
   left = builtins.length (builtins.filter (todo: !todo.completed) todos);
   anyCompleted = builtins.any (todo: todo.completed) todos;
 in
+
 html.footer { class = footer; } [
   (html.span { class = count; } [
     (html.strong left)
     " ${if left == 1 then "item" else "items"} left"
   ])
+
   (filters { inherit filter; })
+
   (
     if anyCompleted then
       html.button {

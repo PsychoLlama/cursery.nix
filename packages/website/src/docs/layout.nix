@@ -6,6 +6,7 @@
   page ? null,
 }:
 body: inputs:
+
 let
   inherit (import <web/dom>) html;
   inherit (import ../index/src/theme.nix) link repository;
@@ -21,10 +22,12 @@ let
       href = "/";
       class = "text-lg font-semibold tracking-tight";
     } "cursery.nix")
+
     (html.a {
       href = "/docs/";
       class = "text-[#6b6875] hover:text-[#c8553d]";
     } "Docs")
+
     (html.nav { class = "ml-auto flex gap-5"; } [
       (html.a {
         href = repository;
@@ -52,6 +55,7 @@ let
     }:
     html.li [
       (item href title (slug == section && page == null))
+
       (html.ul { class = "mt-1 ml-3 space-y-1 border-l border-[#2b2a33]/15 pl-2"; } (
         map (
           entry:
@@ -64,9 +68,11 @@ let
     (html.ul { class = "-mx-3 space-y-1 text-[15px]"; } (map entry sections))
   ];
 in
+
 import ../layout.nix "${title} · cursery.nix docs" [
   (html.div { class = "mx-auto max-w-5xl px-6"; } [
     header
+
     (html.div { class = "grid gap-10 pt-6 pb-20 md:grid-cols-[12rem_1fr]"; } [
       sidebar
       (html.main { class = "min-w-0"; } body)

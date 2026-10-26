@@ -26,17 +26,21 @@ in
   render = state: [
     (html.div { class = "mx-auto max-w-4xl px-6"; } [
       header
+
       (html.main { class = "space-y-20 pt-10 pb-20"; } [
         intro
+
         (html.section [
           (demo { inherit (state) source error; })
           (template { inherit (state) copied; })
         ])
+
         features
         examples
         history
         thanks
       ])
+
       footer
     ])
   ];

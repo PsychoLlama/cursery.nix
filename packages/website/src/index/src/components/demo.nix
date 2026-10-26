@@ -1,4 +1,5 @@
 # An editor next to the app it describes, running in the playground frame.
+
 let
   inherit (import <web/dom>) html svg;
   inherit (import <web/io>) call dispatch pipe;
@@ -32,6 +33,7 @@ let
           2
           3
         ])
+
         (html.button {
           class = "ml-auto rounded p-1 text-[#6b6875] transition hover:bg-[#2b2a33]/10 hover:text-[#2b2a33] noscript:hidden";
           title = "Reload";
@@ -72,9 +74,11 @@ let
   # Saves the edit, then shows the frame's error, if any.
   edit =
     event:
+
     let
       source = event.target.value;
     in
+
     pipe source [
       (dispatch "source")
       (_: call "preview" source)
@@ -106,6 +110,7 @@ html.div [
               class = text;
               aria-hidden = "true";
             } (html.code (highlight source ++ [ " " ])))
+
             (html.textarea {
               id = "demo-source";
               class = "${text} resize-none overflow-hidden bg-transparent text-transparent caret-[#e8e1d4] outline-none selection:bg-white/20";
@@ -120,6 +125,7 @@ html.div [
 
         (html.div { class = "flex flex-col bg-[#fbf8f2]"; } [
           toolbar
+
           (html.div { class = "grid min-h-40 flex-1"; } [
             (html.iframe {
               id = "demo-preview";
@@ -127,6 +133,7 @@ html.div [
               title = "Demo";
               class = "size-full noscript:hidden";
             })
+
             (html.p {
               class = "hidden place-self-center p-6 text-center text-sm text-[#6b6875] noscript:block";
             } "Enable JavaScript to try the demo.")

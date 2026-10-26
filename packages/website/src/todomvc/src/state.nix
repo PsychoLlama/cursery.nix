@@ -4,9 +4,11 @@ let
   # Trims spaces around `text`.
   trim =
     text:
+
     let
       matched = builtins.match "[[:space:]]*(.*[^[:space:]])[[:space:]]*" text;
     in
+
     if matched == null then "" else builtins.head matched;
 
   # Applies `f` to the todo with `id`.
@@ -19,9 +21,11 @@ let
     # Ids identify todos in actions, and key their elements.
     add =
       state: payload:
+
       let
         text = trim payload;
       in
+
       if text == "" then
         state
       else
@@ -54,11 +58,13 @@ let
     save =
       state:
       { id, text }:
+
       let
         done = state // {
           editing = null;
         };
       in
+
       if trim text == "" then
         handlers.destroy done id
       else
@@ -96,8 +102,10 @@ in
 
   update =
     state: action:
+
     let
       handler = handlers.${action.type} or (throw "Unknown action \"${action.type}\"");
     in
+
     handler state (action.payload or null);
 }

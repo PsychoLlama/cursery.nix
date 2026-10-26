@@ -9,6 +9,7 @@ let
     shell
     ;
 in
+
 import ../../article.nix "guides" "styling" [
   (paragraph [
     "Apps style elements with scoped classes from "
@@ -17,12 +18,14 @@ import ../../article.nix "guides" "styling" [
   ])
 
   (heading "Scoped styles")
+
   (paragraph [
     (code "css")
     " turns CSS into a class. Attach it with "
     (code "class")
     ":"
   ])
+
   (listing "nix" "src/app/default.nix" ''
     let
       inherit (import <web/dom>) html;
@@ -42,10 +45,12 @@ import ../../article.nix "guides" "styling" [
         }
       ''';
     in
+
     {
       render = _: html.div { class = card; } "Hello";
     }
   '')
+
   (paragraph [
     "Styles can also select each other, and "
     (code "image")
@@ -58,22 +63,26 @@ import ../../article.nix "guides" "styling" [
   ])
 
   (heading "Combine classes")
+
   (paragraph [
     (code "class")
     " takes a list of styles and strings. "
     (code "null")
     " adds nothing, for conditional classes:"
   ])
+
   (listing "nix" "Classes" ''
     html.div { class = [ card "shadow-md" (if active then selected else null) ]; } "Hello"
   '')
 
   (heading "Global styles")
+
   (paragraph [
     "An app's "
     (code "styles")
     " is CSS for the whole page:"
   ])
+
   (listing "nix" "src/app/default.nix" ''
     {
       styles = '''
@@ -90,6 +99,7 @@ import ../../article.nix "guides" "styling" [
   '')
 
   (heading "Other styling tools")
+
   (paragraph [
     "Optionally, other tools can style the page too, through stylesheets the server entry links. For example, install "
     (html.a {
@@ -98,7 +108,9 @@ import ../../article.nix "guides" "styling" [
     } "Tailwind")
     " with its Vite plugin:"
   ])
+
   (shell [ "pnpm add -D tailwindcss @tailwindcss/vite" ])
+
   (listing "javascript" "vite.config.js" ''
     import tailwindcss from "@tailwindcss/vite";
 
@@ -106,11 +118,14 @@ import ../../article.nix "guides" "styling" [
       plugins: [cursery({ /* ... */ }), tailwindcss()],
     });
   '')
+
   (paragraph "Point it at the app's Nix files:")
+
   (listing "css" "src/app.css" ''
     @import "tailwindcss";
     @source "./app";
   '')
+
   (paragraph [
     "Link the stylesheet from the "
     (html.a {
@@ -119,12 +134,14 @@ import ../../article.nix "guides" "styling" [
     } "server entry")
     ":"
   ])
+
   (listing "nix" "src/page.nix" ''
     (html.head [
       (html.link { rel = "stylesheet"; href = "/src/app.css"; })
       assets
     ])
   '')
+
   (paragraph [
     "Utility classes go in "
     (code "class")

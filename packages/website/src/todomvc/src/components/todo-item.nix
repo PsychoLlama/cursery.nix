@@ -67,6 +67,7 @@ let
           stroke = if checked then "#59a193" else "#949494";
           stroke-width = 3;
         })
+
         (
           if checked then
             svg.path {
@@ -132,6 +133,7 @@ let
 in
 
 { todo, editing }:
+
 let
   # Keyed by id, so items keep their DOM nodes as others come and go.
   attrs = {
@@ -139,6 +141,7 @@ let
     key = todo.id;
   };
 in
+
 if editing then
   html.li attrs [
     (html.input {

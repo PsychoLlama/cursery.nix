@@ -3,14 +3,17 @@
 # place:
 #
 #   { client, bundles, ... }:
+#
 #   let
 #     inherit (import <web/dom>) html;
 #     inherit (import <web/static>) render;
 #     app = render (import client);
 #   in
+#
 #   html.html { lang = "en"; } [
 #     (html.head ([ (html.style app.styles) ]
 #       ++ map (src: html.script { type = "module"; inherit src; }) bundles))
+#
 #     (html.body (html.div { id = "app"; } app.children))
 #   ]
 #
@@ -65,10 +68,12 @@ let
 
   render =
     app:
+
     let
       mounted = (renderer app).mount null;
       globals = if mounted.styles == null then [ ] else [ mounted.styles ];
     in
+
     {
       inherit (mounted) children;
       styles = builtins.concatStringsSep "\n" (globals ++ unique (classes mounted.children));

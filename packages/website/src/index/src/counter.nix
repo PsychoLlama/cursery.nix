@@ -2,6 +2,7 @@ let
   inherit (import <web/dom>) html;
   inherit (import <web/io>) dispatch;
 in
+
 {
   init = 0;
   update = count: action: count + 1;

@@ -1,5 +1,6 @@
 # A link to getting started, beside the command to start from the flake
 # template (with a button to copy it).
+
 let
   inherit (import <web/dom>) html svg;
   inherit (import <web/io>) call dispatch pipe;
@@ -29,9 +30,11 @@ let
           height = 4;
           rx = 1;
         })
+
         (svg.path {
           d = "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2";
         })
+
         (if checked then svg.path { d = "m9 14 2 2 4-4"; } else null)
       ];
 
@@ -76,11 +79,13 @@ html.div { class = "mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"; } [
       arrow
     ]
   )
+
   (html.div { class = "${frame} relative min-w-0 flex-1 bg-[#2b2a33]"; } [
     (html.pre { class = "overflow-x-auto py-3 pr-14 pl-4 font-mono text-sm text-[#e8e1d4]"; } [
       (html.span { class = "text-[#b8d68a] select-none"; } "$ ")
       command
     ])
+
     (html.button {
       class = "absolute top-1/2 right-2 -translate-y-1/2 rounded-md bg-[#2b2a33]/80 p-2 text-[#e8e1d4]/70 transition hover:bg-[#403f47]/80 hover:text-[#e8e1d4] noscript:hidden";
       title = if copied then "Copied" else "Copy";

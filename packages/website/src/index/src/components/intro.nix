@@ -20,6 +20,7 @@ let
           cy = 12;
           r = 10;
         })
+
         (svg.path { d = "M12 16v-4"; })
         (svg.path { d = "M12 8h.01"; })
       ];
@@ -30,6 +31,7 @@ html.section [
   (html.h1 {
     class = "text-4xl font-semibold tracking-tight sm:text-5xl";
   } "Interactive web apps in pure Nix")
+
   (html.p { class = "mt-5 text-lg"; } [
     "Elements, styles, state, and side effects, all written in Nix. "
     (html.a {
@@ -38,6 +40,7 @@ html.section [
     } "Available on npm")
     " as pre-built WebAssembly."
   ])
+
   (html.aside
     {
       class = "mt-8 flex items-start gap-3 rounded-lg border border-[#2b2a33]/15 bg-[#2b2a33]/[0.04] px-4 py-3 text-sm text-[#4a4853]";

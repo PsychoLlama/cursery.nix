@@ -61,6 +61,7 @@ builtins.seq checked {
   # of its global styles, or `null` for none.
   mount =
     kept:
+
     let
       stateful = checked ? init;
       state =
@@ -73,6 +74,7 @@ builtins.seq checked {
 
       next = if stateful then { inherit state; } else null;
     in
+
     {
       children = view next;
       kept = next;
@@ -89,9 +91,11 @@ builtins.seq checked {
   # `update` returned an effect to run instead.
   update =
     kept: action:
+
     let
       next = checked.update kept.state action;
     in
+
     if kept == null then
       throw "Received an action without an `update` to handle it"
     else if effects.isEffect next || effects.isIo next then

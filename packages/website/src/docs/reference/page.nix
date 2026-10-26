@@ -5,6 +5,7 @@ let
     (builtins.head (builtins.filter (section: section.slug == "reference") (import ../sections.nix)))
     .pages;
 in
+
 import ../section.nix "reference" (
   html.div { class = "mt-8 grid gap-4 sm:grid-cols-2"; } (
     map (

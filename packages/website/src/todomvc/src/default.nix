@@ -54,6 +54,7 @@ in
   render = state: [
     (html.section { class = app; } [
       header
+
       (
         if state.todos == [ ] then
           null
@@ -61,15 +62,18 @@ in
           [
             (html.main { class = main; } [
               (toggleAll { inherit (state) todos; })
+
               (todoList {
                 inherit (state) editing;
                 todos = visible state;
               })
             ])
+
             (footer { inherit (state) todos filter; })
           ]
       )
     ])
+
     info
   ];
 }

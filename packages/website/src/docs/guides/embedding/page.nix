@@ -9,6 +9,7 @@ let
     shell
     ;
 in
+
 import ../../article.nix "guides" "embedding" [
   (paragraph [
     "Pages declared in the Vite plugin's "
@@ -18,6 +19,7 @@ import ../../article.nix "guides" "embedding" [
 
   (heading "Add the plugin")
   (shell [ "pnpm add cursery" ])
+
   (listing "javascript" "vite.config.js" ''
     import cursery from "cursery/vite-plugin";
     import { defineConfig } from "vite";
@@ -26,6 +28,7 @@ import ../../article.nix "guides" "embedding" [
       plugins: [cursery()],
     });
   '')
+
   (paragraph [
     "For TypeScript, add "
     (code "cursery/vite-plugin/client")
@@ -35,19 +38,23 @@ import ../../article.nix "guides" "embedding" [
   ])
 
   (heading "Mount the app")
+
   (listing "nix" "app/default.nix" ''
     let
       inherit (import <web/dom>) html;
     in
+
     {
       render = state: html.p "Hello from Nix";
     }
   '')
+
   (paragraph [
     "Import the app's directory with "
     (code "?cursery:app")
     ", and mount it into an element:"
   ])
+
   (listing "javascript" "main.js" ''
     import app from "./app?cursery:app";
 

@@ -7,6 +7,7 @@ let
     paragraph
     ;
 in
+
 import ../../article.nix "guides" "pre-rendering" [
   (paragraph [
     (code "renderToString")
@@ -14,28 +15,34 @@ import ../../article.nix "guides" "pre-rendering" [
   ])
 
   (heading "Write the page")
+
   (paragraph [
     "A page is a function of its inputs that returns an "
     (code "html")
     " element."
   ])
+
   (listing "nix" "src/page.nix" ''
     { name }:
+
     let
       inherit (import <web/dom>) html;
       inherit (import <web/static>) render;
       app = render (import ./app);
     in
+
     html.html { lang = "en"; } [
       (html.head [
         (html.title "Hello, ''${name}")
         (html.style app.styles)
       ])
+
       (html.body [
         (html.div { id = "app"; } app.children)
       ])
     ]
   '')
+
   (paragraph [
     (code "render")
     " from "
@@ -49,6 +56,7 @@ import ../../article.nix "guides" "pre-rendering" [
 
   (heading "Render it")
   (paragraph "Load the Nix files, then render the page:")
+
   (listing "javascript" "render.js" ''
     import { globSync, readFileSync } from "node:fs";
     import { join } from "node:path";
@@ -69,6 +77,7 @@ import ../../article.nix "guides" "pre-rendering" [
 
     console.log(html);
   '')
+
   (paragraph [
     (code "load")
     " returns a store path for the files. The second argument to "
@@ -77,9 +86,11 @@ import ../../article.nix "guides" "pre-rendering" [
     (code "node render.js")
     " prints the HTML:"
   ])
+
   (listing "html" "Output" ''
     <!doctype html><html lang="en"><head><title>Hello, Nix… (truncated)
   '')
+
   (paragraph [
     "A loaded path can be rendered any number of times. "
     (code "unload")

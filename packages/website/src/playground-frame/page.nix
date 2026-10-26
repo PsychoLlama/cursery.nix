@@ -1,5 +1,6 @@
 # An empty page that renders apps posted to it (see `main.ts`), for live
 # demos in an iframe.
+
 let
   inherit (import <web/dom>) html;
 
@@ -36,6 +37,7 @@ let
     }
   '';
 in
+
 inputs:
 import ../layout.nix "cursery.nix playground frame" [ (html.div { id = "app"; }) ] (
   inputs

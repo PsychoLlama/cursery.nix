@@ -42,6 +42,7 @@ in
     state:
     html.main [
       (html.h1 { class = greeting; } "Hello, ${state.name}!")
+
       (html.label { class = field; } [
         "Name:"
         (html.input {

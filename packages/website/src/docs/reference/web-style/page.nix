@@ -13,6 +13,7 @@ let
     href = "/docs/reference/web-dom/";
   } (code "<web/dom>");
 in
+
 import ../../article.nix "reference" "web-style" [
   (paragraph [
     "Scoped styles, and CSS images made of elements. Styles attach to elements through "
@@ -21,22 +22,27 @@ import ../../article.nix "reference" "web-style" [
     dom
     "."
   ])
+
   (listing "nix" "Exports" ''
     let
       inherit (import <web/style>) css image;
     in
+
     html.p { class = css "color: teal;"; } "Hello"
   '')
 
   (heading "css")
+
   (listing "nix" "Signature" ''
     css body
   '')
+
   (paragraph [
     "Returns a style: a class whose rule has "
     (code "body")
     ", a string of CSS. It's written as is, so selectors and at-rules nest in it with native CSS nesting:"
   ])
+
   (listing "nix" "Styles" ''
     card = css '''
       padding: 1rem;
@@ -50,6 +56,7 @@ import ../../article.nix "reference" "web-style" [
       }
     ''';
   '')
+
   (paragraph [
     "The class is named "
     (code "s-")
@@ -59,18 +66,22 @@ import ../../article.nix "reference" "web-style" [
     (code "@layer components")
     "."
   ])
+
   (paragraph "A style interpolates as its selector:")
+
   (listing "nix" "Selectors" ''
     icon = css "width: 1rem;";
 
     # The rule's body is `&:has(.s-4b172ce5) { padding-left: 2rem; }`.
     card = css "&:has(''${icon}) { padding-left: 2rem; }";
   '')
+
   (paragraph [
     "Styles load when an element using them renders, once per class. In the browser, they're adopted into the document, or the shadow root the app mounts in. Static renders return them as "
     (code "styles")
     "."
   ])
+
   (paragraph [
     "A body that isn't a string throws. In the browser, so does CSS that doesn't parse, or that closes the class's rule to style something else, as it loads. Static renders don't check it. Styles as children throw: they go in "
     (code "class")
@@ -78,9 +89,11 @@ import ../../article.nix "reference" "web-style" [
   ])
 
   (heading "image")
+
   (listing "nix" "Signature" ''
     image children
   '')
+
   (paragraph [
     "Returns a CSS "
     (code "url()")
@@ -92,6 +105,7 @@ import ../../article.nix "reference" "web-style" [
     dom
     ":"
   ])
+
   (listing "nix" "Images" ''
     let
       inherit (import <web/dom>) svg;
@@ -99,8 +113,10 @@ import ../../article.nix "reference" "web-style" [
 
       dot = svg.svg { viewBox = "0 0 10 10"; } (svg.circle { cx = 5; cy = 5; r = 5; });
     in
+
     css "list-style-image: ''${image dot};"
   '')
+
   (paragraph [
     "Root elements in the SVG namespace get its "
     (code "xmlns")
