@@ -10,12 +10,26 @@ let
   history = import ./components/history.nix;
   thanks = import ./components/thanks.nix;
   footer = import ./components/footer.nix;
+
+  # Drops a trailing newline.
+  trimEnd =
+    text:
+
+    let
+      length = builtins.stringLength text;
+    in
+
+    if length > 0 && builtins.substring (length - 1) 1 text == "\n" then
+      builtins.substring 0 (length - 1) text
+    else
+      text;
 in
 
 {
   init = {
-    # The demo's starting source, an app in its own right.
-    source = builtins.readFile ./counter.nix;
+    # The demo's starting source, an app in its own right. Its trailing
+    # newline would show as an empty line in the editor.
+    source = trimEnd (builtins.readFile ./counter.nix);
     error = null;
     copied = false;
   };
