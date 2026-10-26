@@ -2,7 +2,7 @@
 
 let
   inherit (import <web/dom>) html;
-  theme = import ../index/src/theme.nix;
+  theme = import ../index/app/theme.nix;
 
   # The highlighting theme's background (see `highlight.ts`), for code blocks.
   background = "bg-[#282c34]";

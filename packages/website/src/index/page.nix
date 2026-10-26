@@ -1,4 +1,4 @@
-# The homepage. The app in `src/` renders everything in it.
+# The homepage. The app in `app/` renders everything in it.
 
 let
   inherit (import <web/dom>) html;

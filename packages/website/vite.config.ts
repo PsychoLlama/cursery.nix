@@ -46,7 +46,7 @@ export default defineConfig({
             server: "./src/index/page.nix",
             client: {
               type: "nix",
-              path: "./src/index/src",
+              path: "./src/index/app",
               effects: "./src/index/effects.ts",
             },
           },
@@ -54,7 +54,7 @@ export default defineConfig({
         "hello-world/index.html": {
           entry: {
             server: "./src/hello-world/page.nix",
-            client: { type: "nix", path: "./src/hello-world/src" },
+            client: { type: "nix", path: "./src/hello-world/app" },
           },
         },
         "playground-frame/index.html": {
@@ -68,7 +68,7 @@ export default defineConfig({
             server: "./src/todomvc/page.nix",
             client: {
               type: "nix",
-              path: "./src/todomvc/src",
+              path: "./src/todomvc/app",
               effects: "./src/todomvc/effects.ts",
             },
           },

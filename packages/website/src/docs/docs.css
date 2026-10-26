@@ -1,7 +1,7 @@
 /* The docs share the homepage's look, so they scan its theme too. */
 @import "tailwindcss" source(none);
 @source ".";
-@source "../index/src/theme.nix";
+@source "../index/app/theme.nix";
 
 @layer base {
   body {

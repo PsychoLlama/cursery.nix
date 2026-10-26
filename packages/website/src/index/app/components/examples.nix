@@ -4,7 +4,7 @@ let
 
   examples = [
     {
-      href = "${repository}/blob/main/packages/website/src/index/src/components/examples.nix";
+      href = "${repository}/blob/main/packages/website/src/index/app/components/examples.nix";
       name = "This website";
       body = "The page you're reading now is written in Nix, including the interactive demo.";
     }

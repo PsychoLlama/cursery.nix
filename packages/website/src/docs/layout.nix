@@ -9,7 +9,7 @@ body: inputs:
 
 let
   inherit (import <web/dom>) html;
-  inherit (import ../index/src/theme.nix) link repository;
+  inherit (import ../index/app/theme.nix) link repository;
   sections = import ./sections.nix;
 
   stylesheet = html.link {
