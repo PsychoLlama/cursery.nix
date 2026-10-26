@@ -1,4 +1,5 @@
-# The command to start from the flake template, with a button to copy it.
+# A link to getting started, beside the command to start from the flake
+# template (with a button to copy it).
 let
   inherit (import <web/dom>) html svg;
   inherit (import <web/io>) call dispatch pipe;
@@ -34,6 +35,24 @@ let
         (if checked then svg.path { d = "m9 14 2 2 4-4"; } else null)
       ];
 
+  # An arrow to the right, from Lucide.
+  arrow =
+    svg.svg
+      {
+        class = "size-4";
+        viewBox = "0 0 24 24";
+        fill = "none";
+        stroke = "currentColor";
+        stroke-width = 2;
+        stroke-linecap = "round";
+        stroke-linejoin = "round";
+        aria-hidden = "true";
+      }
+      [
+        (svg.path { d = "M5 12h14"; })
+        (svg.path { d = "m12 5 7 7-7 7"; })
+      ];
+
   # Shows a check for a couple of seconds.
   copy =
     _:
@@ -46,9 +65,18 @@ let
 in
 
 { copied }:
-html.div [
-  (html.p { class = "mt-8 text-sm text-[#6b6875]"; } "Start from the flake template:")
-  (html.div { class = "${frame} relative mt-3 bg-[#2b2a33]"; } [
+html.div { class = "mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"; } [
+  (html.a
+    {
+      href = "/docs/";
+      class = "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#c8553d] px-5 py-2.5 font-medium text-white transition hover:bg-[#b2472f]";
+    }
+    [
+      "Get started"
+      arrow
+    ]
+  )
+  (html.div { class = "${frame} relative min-w-0 flex-1 bg-[#2b2a33]"; } [
     (html.pre { class = "overflow-x-auto py-3 pr-14 pl-4 font-mono text-sm text-[#e8e1d4]"; } [
       (html.span { class = "text-[#b8d68a] select-none"; } "$ ")
       command
