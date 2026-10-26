@@ -1,6 +1,5 @@
 {
   "name": "cursery",
-  "private": true,
   "version": "0.1.0",
   "description": "Framework for web apps authored in Nix",
   "author": "Jesse Gibson <JesseTheGibson@gmail.com>",
