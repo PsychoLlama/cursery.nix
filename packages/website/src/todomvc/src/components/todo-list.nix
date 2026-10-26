@@ -18,6 +18,6 @@ html.ul { class = list; } (
     todoItem {
       inherit todo;
       editing = editing == todo.id;
-    } { key = todo.id; }
+    }
   ) todos
 )

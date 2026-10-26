@@ -132,8 +132,15 @@ let
 in
 
 { todo, editing }:
+let
+  # Keyed by id, so items keep their DOM nodes as others come and go.
+  attrs = {
+    class = item;
+    key = todo.id;
+  };
+in
 if editing then
-  html.li { class = item; } [
+  html.li attrs [
     (html.input {
       id = editId todo;
       class = edit;
@@ -150,7 +157,7 @@ if editing then
     })
   ]
 else
-  html.li { class = item; } [
+  html.li attrs [
     (html.input {
       class = toggle;
       type = "checkbox";
