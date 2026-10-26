@@ -4,6 +4,7 @@ title: body:
   children,
   assets,
   scripts,
+  analytics ? true,
 }:
 let
   inherit (import <web/dom>) html;
@@ -21,12 +22,23 @@ html.html { lang = "en"; } [
       type = "image/svg+xml";
       href = "/favicon.svg";
     })
-    # Page views. It skips localhost and frames, like the playground's.
-    (html.script {
-      data-goatcounter = "https://cursery.goatcounter.com/count";
-      async = true;
-      src = "//gc.zgo.at/count.js";
-    })
+    (
+      # Open source analytics tool: https://goatcounter.com
+      #
+      # As privacy-preserving as possible while still answering how many
+      # views, which pages, and where from.
+      #
+      # About the same info as request headers, but without having to run
+      # a server.
+      if analytics then
+        html.script {
+          data-goatcounter = "https://cursery.goatcounter.com/count";
+          async = true;
+          src = "//gc.zgo.at/count.js";
+        }
+      else
+        null
+    )
     assets
   ])
   (html.body [

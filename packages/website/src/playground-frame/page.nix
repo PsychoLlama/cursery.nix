@@ -38,5 +38,11 @@ let
 in
 inputs:
 import ../layout.nix "cursery.nix playground frame" [ (html.div { id = "app"; }) ] (
-  inputs // { assets = inputs.assets ++ [ styles ]; }
+  inputs
+  // {
+    assets = inputs.assets ++ [ styles ];
+
+    # Already included in the parent frame.
+    analytics = false;
+  }
 )
