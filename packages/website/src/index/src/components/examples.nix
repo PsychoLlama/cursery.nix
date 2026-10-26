@@ -3,11 +3,20 @@ let
   inherit (import ../theme.nix)
     heading
     frame
-    link
     repository
     ;
 
   examples = [
+    {
+      href = "${repository}/blob/main/packages/website/src/index/src/components/examples.nix";
+      name = "This website";
+      body = "The page you're reading now is written in Nix, including the interactive demo.";
+    }
+    {
+      href = "/docs/";
+      name = "Documentation";
+      body = "Authored in Nix and pre-rendered to static pages.";
+    }
     {
       href = "/hello-world/";
       name = "Hello world";
@@ -42,13 +51,4 @@ html.section { id = "examples"; } [
       ]
     ) examples
   ))
-
-  (html.p { class = "mt-6 text-[#4a4853]"; } [
-    "This page itself! The entire site is written in Nix, pre-rendered and hydrated. "
-    (html.a {
-      href = "${repository}/tree/main/packages/website/src/index";
-      class = link;
-    } "See the source")
-    "."
-  ])
 ]
