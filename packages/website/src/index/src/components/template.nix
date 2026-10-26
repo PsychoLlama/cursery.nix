@@ -54,7 +54,7 @@ html.div [
       command
     ])
     (html.button {
-      class = "absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-2 text-[#e8e1d4]/70 transition hover:bg-white/10 hover:text-[#e8e1d4] noscript:hidden";
+      class = "absolute top-1/2 right-2 -translate-y-1/2 rounded-md bg-[#2b2a33]/80 p-2 text-[#e8e1d4]/70 transition hover:bg-[#403f47]/80 hover:text-[#e8e1d4] noscript:hidden";
       title = if copied then "Copied" else "Copy";
       aria-label = if copied then "Copied" else "Copy";
       on.click = copy;
