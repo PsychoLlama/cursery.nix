@@ -5,3 +5,8 @@ packages:
 # Resolves `cursery` in templates to the local package, while their
 # `package.json` names the published version.
 linkWorkspacePackages: true
+
+# Wrangler's dependencies install their native binaries.
+allowBuilds:
+  esbuild: true
+  workerd: true
