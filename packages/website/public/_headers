@@ -1,0 +1,4 @@
+# Cloudflare's header rules (https://developers.cloudflare.com/workers/static-assets/headers/).
+# Vite names everything under `/assets/` by content hash, so it never changes.
+/assets/*
+  Cache-Control: public, immutable, max-age=31536000
